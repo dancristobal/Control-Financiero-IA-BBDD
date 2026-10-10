@@ -1,0 +1,617 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #080c14;
+    color: #f1f5f9;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+/* Custom scrollbar for modern fintech UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #080c14;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* ==========================================================================
+   MODO CLARO (LIGHT THEME) — FINTECH PROFESSIONAL DESIGN SYSTEM
+   ========================================================================== */
+
+html.light,
+body.light {
+  color-scheme: light;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+
+  /* Redefine Tailwind's slate color variables for inverted light contrast */
+  --color-slate-950: #ffffff;
+  --color-slate-900: #f8fafc;
+  --color-slate-850: #f1f5f9;
+  --color-slate-800: #e2e8f0;
+  --color-slate-700: #cbd5e1;
+  --color-slate-600: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-400: #475569;
+  --color-slate-300: #334155;
+  --color-slate-200: #1e293b;
+  --color-slate-100: #0f172a;
+  --color-slate-50: #020617;
+}
+
+/* Base canvases and backgrounds */
+html.light .bg-\[\#080c14\],
+html.light.bg-\[\#080c14\],
+html.light [class*="bg-[#080c14]"] {
+  background-color: #f8fafc !important;
+}
+
+/* Cards, sidebars, headers and modal surfaces */
+html.light .bg-\[\#0a0f18\],
+html.light .bg-\[\#0d131f\],
+html.light .bg-\[\#0b101b\],
+html.light [class*="bg-[#0a0f18]"],
+html.light [class*="bg-[#0d131f]"],
+html.light [class*="bg-[#0b101b]"] {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-\[\#101726\],
+html.light .bg-\[\#0d1424\],
+html.light .bg-\[\#121c2e\],
+html.light .bg-\[\#111c30\],
+html.light .bg-\[\#0e1626\],
+html.light .bg-\[\#0f172a\],
+html.light [class*="bg-[#101726]"],
+html.light [class*="bg-[#0d1424]"],
+html.light [class*="bg-[#121c2e]"],
+html.light [class*="bg-[#111c30]"],
+html.light [class*="bg-[#0e1626]"],
+html.light [class*="bg-[#0f172a]"] {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-\[\#0d1422\],
+html.light [class*="bg-[#0d1422]"] {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-\[\#111827\],
+html.light [class*="bg-[#111827]"] {
+  background-color: #f1f5f9 !important;
+}
+
+/* Secondary panel backgrounds, badges and neutral pills */
+html.light .bg-slate-900 {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/40,
+html.light .bg-slate-950\/40,
+html.light .bg-slate-800,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/40 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .hover\:bg-slate-800\/40:hover,
+html.light .hover\:bg-slate-800\/60:hover,
+html.light .hover\:bg-slate-800:hover,
+html.light .hover\:bg-slate-900:hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* Borders and dividers */
+html.light .border-slate-800,
+html.light .border-slate-800\/90,
+html.light .border-slate-800\/80,
+html.light .border-slate-800\/70,
+html.light .border-slate-800\/60,
+html.light .border-slate-700,
+html.light .border-slate-700\/80,
+html.light .border-slate-700\/60,
+html.light .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-800\/80 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Subtle modern card elevations in light mode */
+html.light .rounded-2xl.border,
+html.light .rounded-xl.border {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* ==========================================================================
+   SPECIFIC CARDS REQUESTED BY USER
+   ========================================================================== */
+
+/* 1. Gasto Total KPI Card */
+html.light #kpi-gasto-total,
+html.light [class*="from-[#121a2d]"] {
+  background-image: linear-gradient(135deg, #ffffff 0%, #fff1f2 100%) !important;
+  background-color: #ffffff !important;
+  border-color: #fecdd3 !important;
+  box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.06), 0 2px 4px -2px rgba(225, 29, 72, 0.04) !important;
+}
+html.light #kpi-gasto-total .text-slate-300 {
+  color: #475569 !important;
+}
+html.light #kpi-gasto-total .text-slate-100 {
+  color: #0f172a !important;
+}
+html.light #kpi-gasto-total .text-slate-400 {
+  color: #64748b !important;
+}
+html.light #kpi-gasto-total .border-slate-800\/80,
+html.light #kpi-gasto-total .border-slate-800\/90 {
+  border-color: #ffe4e6 !important;
+}
+
+/* 2. Cuota IVA Soportado KPI Card */
+html.light #kpi-cuota-iva,
+html.light [class*="from-[#111e33]"] {
+  background-image: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%) !important;
+  background-color: #ffffff !important;
+  border-color: #bae6fd !important;
+  box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.06), 0 2px 4px -2px rgba(2, 132, 199, 0.04) !important;
+}
+html.light #kpi-cuota-iva .text-sky-400 {
+  color: #0284c7 !important;
+}
+html.light #kpi-cuota-iva .text-sky-300 {
+  color: #0369a1 !important;
+}
+html.light #kpi-cuota-iva .text-slate-300 {
+  color: #475569 !important;
+}
+
+/* 3. Sidebar Bottom & Gemini AI Button (Content from attached image) */
+html.light aside {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Gemini Assistant Chat Trigger in Sidebar */
+html.light #sidebar-btn-chat {
+  background-color: #f5f3ff !important;
+  background-image: none !important;
+  border-color: #ddd6fe !important;
+  box-shadow: 0 1px 3px 0 rgba(109, 40, 217, 0.06) !important;
+}
+html.light #sidebar-btn-chat:hover {
+  background-color: #ede9fe !important;
+  border-color: #c4b5fd !important;
+}
+html.light #sidebar-btn-chat .text-indigo-200,
+html.light #sidebar-btn-chat .font-bold {
+  color: #1e1b4b !important; /* Deep dark indigo for maximum legibility */
+}
+html.light #sidebar-btn-chat .text-indigo-400\/80,
+html.light #sidebar-btn-chat .text-indigo-400,
+html.light #sidebar-btn-chat .text-indigo-300 {
+  color: #4f46e5 !important;
+}
+html.light #sidebar-btn-chat .bg-indigo-500\/20 {
+  background-color: #e0e7ff !important;
+  color: #4338ca !important;
+}
+
+/* Sidebar Footer (Bottom Status & Controls) */
+html.light #sidebar-footer {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light #sidebar-sheets-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+html.light #sidebar-sheets-card .text-slate-300 {
+  color: #1e293b !important;
+}
+html.light #sidebar-sheets-card .text-slate-400 {
+  color: #64748b !important;
+}
+
+/* Config & Theme buttons in Sidebar */
+html.light #sidebar-btn-config,
+html.light #sidebar-btn-theme {
+  color: #334155 !important;
+}
+html.light #sidebar-btn-config:hover,
+html.light #sidebar-btn-theme:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+html.light #sidebar-btn-config .text-slate-300,
+html.light #sidebar-btn-theme .text-slate-300 {
+  color: #64748b !important;
+}
+html.light #sidebar-btn-theme span.bg-slate-800 {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Sidebar footer disclaimer text */
+html.light #sidebar-footer p,
+html.light #sidebar-footer .text-slate-400 {
+  color: #64748b !important;
+}
+
+/* 4. Dropzone in Facturas */
+html.light #facturas-dropzone,
+html.light [class*="from-[#101828]"] {
+  background-image: none !important;
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+html.light #facturas-dropzone:hover {
+  border-color: #94a3b8 !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* 5. Highlight AI diagnostic card */
+html.light #card-diagnostico-semana,
+html.light [class*="from-red-950"] {
+  background-image: linear-gradient(135deg, #ffffff 0%, #fff1f2 100%) !important;
+  background-color: #ffffff !important;
+  border-color: #fecdd3 !important;
+  box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.08) !important;
+}
+html.light #card-diagnostico-semana .text-red-100 {
+  color: #991b1b !important;
+}
+html.light #card-diagnostico-semana .text-slate-200 {
+  color: #1e293b !important;
+}
+
+/* 6. Invoice Detail Modal Financial Totals */
+html.light #modal-totales-financieros,
+html.light [class*="from-[#121c2e]"] {
+  background-image: none !important;
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* 7. Chat Modal Header & AI Bubble */
+html.light [class*="from-[#111a2e]"] {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+
+/* Remove any remaining dark gradients in light mode */
+html.light [class*="from-rose-950"] {
+  background-image: linear-gradient(135deg, #ffffff 0%, #fff1f2 100%) !important;
+}
+
+/* ==========================================================================
+   TYPOGRAPHIC CONTRAST & WCAG COMPLIANCE IN LIGHT MODE
+   ========================================================================== */
+
+html.light .text-slate-100 {
+  color: #0f172a !important;
+}
+html.light .text-slate-200 {
+  color: #1e293b !important;
+}
+html.light .text-slate-300 {
+  color: #334155 !important;
+}
+html.light .text-slate-400 {
+  color: #64748b !important;
+}
+html.light .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+/* Accents in light mode */
+html.light .text-rose-300,
+html.light .text-rose-400 {
+  color: #e11d48 !important;
+}
+html.light .text-sky-300,
+html.light .text-sky-400 {
+  color: #0284c7 !important;
+}
+html.light .text-emerald-300,
+html.light .text-emerald-400 {
+  color: #059669 !important;
+}
+html.light .text-amber-300,
+html.light .text-amber-400 {
+  color: #d97706 !important;
+}
+html.light .text-indigo-200,
+html.light .text-indigo-300 {
+  color: #3730a3 !important;
+}
+html.light .text-indigo-400 {
+  color: #4f46e5 !important;
+}
+html.light .text-red-100,
+html.light .text-red-200,
+html.light .text-red-300,
+html.light .text-red-400 {
+  color: #dc2626 !important;
+}
+
+/* Tinted status badges in light mode */
+html.light .bg-emerald-950\/70,
+html.light .bg-emerald-950\/60,
+html.light .bg-emerald-950\/50,
+html.light .bg-emerald-950\/40,
+html.light .bg-emerald-500\/15,
+html.light .bg-emerald-500\/10 {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #047857 !important;
+}
+
+html.light .bg-blue-950\/50,
+html.light .bg-sky-950\/70,
+html.light .bg-sky-950\/60,
+html.light .bg-sky-950\/50,
+html.light .bg-sky-500\/15,
+html.light .bg-sky-500\/10 {
+  background-color: #f0f9ff !important;
+  border-color: #bae6fd !important;
+  color: #0369a1 !important;
+}
+
+html.light .bg-rose-950\/70,
+html.light .bg-rose-950\/50,
+html.light .bg-rose-950\/40,
+html.light .bg-rose-950\/30,
+html.light .bg-rose-950\/20,
+html.light .bg-rose-500\/20,
+html.light .bg-rose-500\/15,
+html.light .bg-rose-500\/10,
+html.light .bg-red-950\/40,
+html.light .bg-red-500\/20,
+html.light .bg-red-500\/10 {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+  color: #be123c !important;
+}
+
+html.light .bg-indigo-950\/50,
+html.light .bg-indigo-950\/40,
+html.light .bg-indigo-950\/20,
+html.light .bg-indigo-500\/20,
+html.light .bg-indigo-500\/15 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #4338ca !important;
+}
+
+html.light .bg-amber-950\/50,
+html.light .bg-amber-950\/40,
+html.light .bg-amber-900\/30,
+html.light .bg-amber-500\/20,
+html.light .bg-amber-500\/15,
+html.light .bg-amber-500\/10 {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #b45309 !important;
+}
+
+/* Inputs, dropdowns and textareas in light mode */
+html.light input:not([type="checkbox"]):not([type="radio"]),
+html.light select,
+html.light textarea {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #e11d48 !important;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.15) !important;
+}
+
+/* Modal overlays in light mode */
+html.light .bg-black\/80,
+html.light .bg-black\/70,
+html.light .bg-black\/60 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(4px);
+}
+
+/* Code block in Apps Script view maintains code editor contrast */
+html.light pre {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+/* Recharts data visualizers in light mode */
+html.light .recharts-cartesian-grid-line {
+  stroke: #e2e8f0 !important;
+}
+html.light .recharts-text {
+  fill: #64748b !important;
+}
+html.light .recharts-default-tooltip {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Scrollbars in light mode */
+html.light ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Date input calendar picker icons in dark and light modes */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  cursor: pointer;
+}
+
+html.light input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none !important;
+}
+
+html.light #barra-filtro-fechas {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light #barra-filtro-fechas input[type="date"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light #barra-filtro-fechas label {
+  color: #64748b !important;
+}
+
+html.light #btn-limpiar-todos-filtros {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+html.light #btn-limpiar-todos-filtros:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Pagination Bar in Light Mode */
+html.light #paginacion-facturas button:not(.bg-rose-600) {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html.light #paginacion-facturas button:not(.bg-rose-600):hover:not(:disabled) {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light #paginacion-facturas button:disabled {
+  opacity: 0.3 !important;
+}
+
+html.light #selector-por-pagina {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Global Loading Bar & Top Progress Animation */
+@keyframes progress-bar-indeterminate {
+  0% {
+    transform: translateX(-100%) scaleX(0.15);
+  }
+  45% {
+    transform: translateX(15%) scaleX(0.65);
+  }
+  100% {
+    transform: translateX(110%) scaleX(0.2);
+  }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-bar-indeterminate 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+html.light #barra-progreso-superior {
+  background-color: #e2e8f0 !important;
+  box-shadow: 0 1px 6px rgba(225, 29, 72, 0.25) !important;
+}
+
+html.light #indicador-carga-flotante {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: #f43f5e !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light #indicador-carga-flotante span.text-slate-200 {
+  color: #0f172a !important;
+}
+
+/* Specific styling for PDF and Print mode */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .print-modal-content,
+  .print-modal-content * {
+    visibility: visible !important;
+  }
+
+  .print-modal-content {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .page-break {
+    page-break-before: always;
+    break-before: page;
+    display: block !important;
+  }
+
+  .print-card {
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+  }
+}

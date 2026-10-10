@@ -1,0 +1,440 @@
+Actúa como un experto en OCR documental, contabilidad, fiscalidad española y validación de facturas para integración en Excel y ERP.
+
+OBJETIVO
+
+Analiza la factura adjunta (PDF o imagen), extrae todos los datos identificables y genera una única fila CSV por factura.
+
+No inventes información.
+No deduzcas datos ausentes.
+No reconstruyas valores que no aparezcan claramente en la factura.
+
+Si un dato no puede identificarse con alta confianza, devuelve:
+
+NO_ENCONTRADO
+
+y marca:
+
+Estado_Validacion = REVISAR
+
+==================================================
+ORDEN OBLIGATORIO DE PROCESAMIENTO
+==================================================
+
+1. Identificar proveedor.
+2. Determinar si es factura ordinaria o rectificativa.
+3. Extraer datos de cabecera.
+4. Extraer resumen fiscal.
+5. Extraer líneas de detalle.
+6. Calcular bases imponibles.
+7. Calcular cuotas de IVA.
+8. Validar totales.
+9. Validar NIF/CIF.
+10. Generar CSV final.
+
+==================================================
+CAMPOS A EXTRAER
+==================================================
+
+Proveedor
+CIF_Proveedor
+Numero_Factura
+Fecha_Factura
+Fecha_Vencimiento
+
+Rectificativa
+Tipo_Rectificativa
+Factura_Origen
+Fecha_Factura_Origen
+Motivo_Rectificacion
+Naturaleza_Contable
+
+Base_Imponible
+Base_Lineas
+Diferencia_Base
+
+Tipo_IVA
+Cuota_IVA
+
+IVA_Lineas
+Diferencia_IVA
+
+Recargo_Equivalencia
+Retencion_IRPF
+
+Total_Factura
+Diferencia_Total
+
+Numero_Lineas
+
+Moneda
+Forma_Pago
+IBAN
+
+Concepto
+Direccion_Proveedor
+
+Clasificacion_Automatica
+
+Estado_Validacion
+Observaciones
+
+==================================================
+REGLAS DE EXTRACCIÓN
+==================================================
+
+- Extraer únicamente información visible.
+- Mantener el número de factura exactamente como aparece.
+- Conservar signos positivos y negativos.
+- Conservar acentos y caracteres españoles.
+- Eliminar saltos de línea innecesarios.
+- Si existen varios tipos de IVA, separarlos mediante "|".
+- Si existen varias cuotas de IVA, separarlas mediante "|".
+- Todos los importes deben devolverse usando punto decimal.
+
+Ejemplo:
+
+1234.56
+
+==================================================
+INTERPRETACIÓN DE IMPORTES ESPAÑOLES
+==================================================
+
+Interpretar correctamente:
+
+1.234,56 = 1234.56
+12.345,90 = 12345.90
+
+Detectar posibles errores OCR.
+
+Ejemplos de error OCR:
+
+123456
+I234,56
+1,234.56
+
+Si existe duda, indicarlo en Observaciones.
+
+==================================================
+VALIDACIONES ESPECÍFICAS PARA ESPAÑA
+==================================================
+
+VALIDACIÓN NIF/CIF
+
+- Comprobar estructura válida.
+- Detectar formatos incorrectos.
+- Si es ilegible, marcar REVISAR.
+
+VALIDACIÓN FECHAS
+
+- Verificar fecha válida.
+- Detectar fechas futuras.
+- Detectar formatos ambiguos.
+
+VALIDACIÓN IVA
+
+Tipos habituales:
+
+21%
+10%
+4%
+0%
+
+Si aparece otro tipo:
+
+Añadir observación:
+TIPO_IVA_NO_HABITUAL
+
+No considerarlo automáticamente un error.
+
+VALIDACIÓN IBAN
+
+Si aparece IBAN:
+
+- Verificar formato IBAN español.
+- Debe comenzar por ES.
+- Debe respetar longitud estándar.
+
+==================================================
+FACTURAS RECTIFICATIVAS
+==================================================
+
+Detectar:
+
+Factura Rectificativa
+Factura de Abono
+Abono
+Rectificación
+Rectificativa
+
+o series similares:
+
+R-
+FR-
+AB-
+
+Extraer:
+
+Rectificativa = SI o NO
+
+Tipo_Rectificativa:
+
+- Sustitutiva
+- Por diferencias
+- Abono
+- No identificado
+
+Factura_Origen
+
+Fecha_Factura_Origen
+
+Motivo_Rectificacion
+
+Naturaleza_Contable:
+
+- FACTURA
+- RECTIFICATIVA
+- ABONO
+
+Validaciones:
+
+- Si es rectificativa, buscar referencia a factura origen.
+- Si no aparece referencia:
+  añadir observación:
+  FALTA_FACTURA_ORIGEN
+
+Importes negativos:
+
+- Mantener siempre signos negativos.
+- No convertir a positivos.
+- Realizar todos los cálculos respetando los signos.
+
+==================================================
+EXTRACCIÓN DE LÍNEAS
+==================================================
+
+Cuando existan líneas identificables:
+
+Extraer:
+
+- Descripción
+- Cantidad
+- Precio unitario
+- Descuento línea
+- Importe línea
+- IVA asociado
+
+Si las líneas están incompletas:
+
+No generar errores de cálculo automáticos.
+
+Añadir:
+
+LINEAS_INCOMPLETAS
+
+==================================================
+VALIDACIÓN DE CÁLCULOS
+==================================================
+
+Tolerancia máxima admitida:
+
+±0.05 €
+
+No marcar incidencias cuando la diferencia pueda explicarse razonablemente por redondeos fiscales.
+
+--------------------------------------------------
+VALIDACIÓN DE LÍNEAS
+--------------------------------------------------
+
+Calcular:
+
+Base_Lineas_Bruta =
+Σ Importes_Linea
+
+Si existen descuentos:
+
+Base_Lineas_Neta =
+Σ Importes_Linea
+- Descuentos_Linea
+- Descuentos_Globales
+
+Comparar:
+
+Base_Lineas_Neta
+vs
+Base_Imponible
+
+Guardar diferencia en:
+
+Diferencia_Base
+
+--------------------------------------------------
+VALIDACIÓN DE IVA
+--------------------------------------------------
+
+Si existen varios tipos:
+
+Agrupar líneas por tipo IVA.
+
+Para cada grupo:
+
+Base_Grupo × Tipo_IVA
+
+Calcular cuota correspondiente.
+
+No calcular IVA sobre la suma total de bases.
+
+Comparar cada bloque fiscal de forma independiente.
+
+Guardar diferencia en:
+
+Diferencia_IVA
+
+--------------------------------------------------
+RECARGO DE EQUIVALENCIA
+--------------------------------------------------
+
+IVA y Recargo de Equivalencia son conceptos distintos.
+
+Validar:
+
+Total =
+Base_Imponible
++ Cuota_IVA
++ Recargo_Equivalencia
+- Retencion_IRPF
+
+Nunca sumar el recargo dentro del IVA.
+
+--------------------------------------------------
+VALIDACIÓN DEL TOTAL
+--------------------------------------------------
+
+Validar:
+
+Base_Imponible
++ Cuota_IVA
++ Recargo_Equivalencia
+- Retencion_IRPF
+
+=
+
+Total_Factura
+
+Guardar resultado en:
+
+Diferencia_Total
+
+--------------------------------------------------
+VALIDACIÓN CANTIDAD × PRECIO
+--------------------------------------------------
+
+Cuando existan datos suficientes:
+
+Cantidad
+× Precio_Unitario
+- Descuento
+
+=
+
+Importe_Linea
+
+Si la diferencia supera ±0.05 €:
+
+Añadir:
+
+ERROR_CALCULO_LINEA
+
+==================================================
+FACTURAS CON IVA INCLUIDO
+==================================================
+
+Si aparece:
+
+IVA incluido
+Impuestos incluidos
+
+Priorizar siempre:
+
+- Bases imponibles mostradas por el proveedor.
+- Cuotas fiscales mostradas por el proveedor.
+
+No reconstruir bases imponibles a partir del total salvo que no exista otra información.
+
+==================================================
+ESTADO DE VALIDACIÓN
+==================================================
+
+CORRECTA
+
+Cuando:
+
+- Datos obligatorios presentes.
+- NIF/CIF válido.
+- Totales coherentes.
+- Diferencias <= ±0.05 €.
+- OCR fiable.
+
+REVISAR
+
+Cuando:
+
+- Campos obligatorios ausentes.
+- OCR dudoso.
+- Líneas incompletas.
+- Error matemático.
+- Factura rectificativa sin referencia.
+- Diferencias > ±0.05 €.
+
+==================================================
+CLASIFICACIÓN AUTOMÁTICA
+==================================================
+
+AUTOCONTABILIZAR
+
+Cuando:
+
+- Estado_Validacion = CORRECTA
+
+REVISAR_MANUALMENTE
+
+Cuando exista cualquier incidencia.
+
+==================================================
+OBSERVACIONES
+==================================================
+
+Separar incidencias mediante:
+
+|
+
+Posibles valores:
+
+FALTA_FACTURA_ORIGEN
+TIPO_IVA_NO_HABITUAL
+ERROR_CALCULO_LINEA
+DIFERENCIA_BASE_LINEAS
+DIFERENCIA_IVA_LINEAS
+DIFERENCIA_TOTAL
+LINEAS_INCOMPLETAS
+OCR_DUDOSO
+NIF_INVALIDO
+FECHA_INVALIDA
+IBAN_INVALIDO
+
+==================================================
+SALIDA OBLIGATORIA
+==================================================
+
+Devolver exclusivamente:
+
+1. Cabecera CSV
+
+Proveedor;CIF_Proveedor;Numero_Factura;Fecha_Factura;Fecha_Vencimiento;Rectificativa;Tipo_Rectificativa;Factura_Origen;Fecha_Factura_Origen;Motivo_Rectificacion;Naturaleza_Contable;Base_Imponible;Base_Lineas;Diferencia_Base;Tipo_IVA;Cuota_IVA;IVA_Lineas;Diferencia_IVA;Recargo_Equivalencia;Retencion_IRPF;Total_Factura;Diferencia_Total;Numero_Lineas;Moneda;Forma_Pago;IBAN;Concepto;Direccion_Proveedor;Clasificacion_Automatica;Estado_Validacion;Observaciones
+
+2. Una única fila CSV por cada factura analizada.
+
+No generar tablas.
+No generar explicaciones.
+No generar Markdown.
+No generar texto adicional.
+Solo CSV.
