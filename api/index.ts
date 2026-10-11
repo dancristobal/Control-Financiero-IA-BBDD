@@ -1,5 +1,5 @@
+// Vercel Serverless Function entry point for Express API
+process.env.VERCEL = '1';
 import app from '../server';
 
-export default function handler(req: any, res: any) {
-  return app(req, res);
-}
+export default app;

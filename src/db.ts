@@ -94,7 +94,7 @@ export function getDbPool(forceRecreate = false): mysql.Pool | null {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
-      connectTimeout: 2000,
+      connectTimeout: 8000,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
     });
@@ -132,7 +132,7 @@ export async function ensureDatabaseAndTables(): Promise<{ ok: boolean; reason?:
           port: activeConfig.port,
           user: activeConfig.user,
           password: activeConfig.password,
-          connectTimeout: 2500,
+          connectTimeout: 8000,
         });
         await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${activeConfig.database}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
         await rootConn.end();
@@ -163,7 +163,7 @@ export async function ensureDatabaseAndTables(): Promise<{ ok: boolean; reason?:
           user: activeConfig.user,
           password: activeConfig.password,
           database: activeConfig.database,
-          connectTimeout: 2000,
+          connectTimeout: 8000,
         });
         await createTablesOnConnection(altConn as any);
         await altConn.end();
@@ -823,11 +823,6 @@ export async function eliminarFacturaDeMySQL(idFactura: string): Promise<{ ok: b
       // Eliminar líneas de detalle en ambas variantes de tabla
       await conn.query('DELETE FROM facturas_lineas WHERE id_factura = ?', [normalizedId]);
       await conn.query('DELETE FROM lineas_factura WHERE id_factura = ?', [normalizedId]);
-      // Eliminar alertas asociadas a esta factura para evitar registros huérfanos
-      await conn.query('DELETE FROM alertas WHERE id LIKE ? OR datos_relacionados LIKE ?', [
-        `%${normalizedId}%`,
-        `%${normalizedId}%`
-      ]);
       const [res]: [any, any] = await conn.query('DELETE FROM facturas WHERE id_factura = ?', [normalizedId]);
       await conn.commit();
       conn.release();
@@ -839,35 +834,6 @@ export async function eliminarFacturaDeMySQL(idFactura: string): Promise<{ ok: b
     }
   } catch (err: any) {
     return { ok: false, affectedRows: 0, error: err?.message };
-  }
-}
-
-/**
- * Actualiza los metadatos de archivo de Google Drive de una factura directamente en MySQL.
- */
-export async function actualizarArchivoDriveEnMySQL(
-  idFactura: string,
-  driveFileUrl: string,
-  archivoNombre?: string
-): Promise<{ ok: boolean; error?: string }> {
-  const pool = getDbPool();
-  if (!pool || !isDbConnected) {
-    return { ok: false, error: 'MySQL no está disponible' };
-  }
-  const normalizedId = String(idFactura).trim();
-  try {
-    const conn = await pool.getConnection();
-    await conn.query(
-      `UPDATE facturas 
-       SET archivo_ruta = ?, 
-           archivo_nombre = COALESCE(?, archivo_nombre) 
-       WHERE id_factura = ?`,
-      [driveFileUrl, archivoNombre || null, normalizedId]
-    );
-    conn.release();
-    return { ok: true };
-  } catch (err: any) {
-    return { ok: false, error: err?.message };
   }
 }
 
@@ -1723,8 +1689,7 @@ export async function sincronizarTodoHaciaMySQL(datos: {
  * para máxima compatibilidad con todas las versiones de MariaDB y MySQL.
  */
 export async function guardarAlertasEnMySQL(
-  alertas: any[],
-  reemplazar: boolean = false
+  alertas: any[]
 ): Promise<{ replicadas: number; errores: string[]; mysqlDisponible: boolean }> {
   if (!Array.isArray(alertas) || alertas.length === 0) {
     return { replicadas: 0, errores: [], mysqlDisponible: isDbConnected };
@@ -1749,16 +1714,6 @@ export async function guardarAlertasEnMySQL(
 
   try {
     const conn = await pool.getConnection();
-
-    if (reemplazar) {
-      const idsValidos = alertas.map((a: any) => String(a.id || '').trim()).filter(Boolean);
-      if (idsValidos.length > 0) {
-        await conn.query('DELETE FROM alertas WHERE estado = "activa" AND id NOT IN (?)', [idsValidos]);
-      } else {
-        await conn.query('DELETE FROM alertas WHERE estado = "activa"');
-      }
-    }
-
     for (const a of alertas) {
       try {
         const id = String(a.id || '').trim();

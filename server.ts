@@ -1707,24 +1707,37 @@ app.get('/api/mysql/status', async (req, res) => {
 
 // Endpoint: Actualizar configuración de MySQL y probar conexión
 app.post('/api/mysql/config', async (req, res) => {
-  const { host, port, user, password, database } = req.body || {};
-  updateDbConfig({
-    host: host ? String(host).trim() : undefined,
-    port: port ? Number(port) : undefined,
-    user: user ? String(user).trim() : undefined,
-    password: password !== undefined ? String(password) : undefined,
-    database: database ? String(database).trim() : undefined,
-  });
+  try {
+    const { host, port, user, password, database } = req.body || {};
+    updateDbConfig({
+      host: host ? String(host).trim() : undefined,
+      port: port ? Number(port) : undefined,
+      user: user ? String(user).trim() : undefined,
+      password: password !== undefined ? String(password) : undefined,
+      database: database ? String(database).trim() : undefined,
+    });
 
-  const check = await testDbConnection();
-  return res.json({
-    success: check.connected,
-    connected: check.connected,
-    message: check.message,
-    host: check.host,
-    port: check.port,
-    database: check.database,
-  });
+    const check = await testDbConnection();
+    return res.json({
+      success: check.connected,
+      connected: check.connected,
+      message: check.message,
+      host: check.host,
+      port: check.port,
+      database: check.database,
+      latencyMs: check.latencyMs,
+    });
+  } catch (err: any) {
+    console.error('Error en /api/mysql/config:', err);
+    return res.status(200).json({
+      success: false,
+      connected: false,
+      message: err?.message || 'Error inesperado al probar conexión MySQL',
+      host: req.body?.host,
+      port: req.body?.port,
+      database: req.body?.database,
+    });
+  }
 });
 
 // Endpoint: Exportar script SQL (.sql) de todas las facturas y proveedores
@@ -2440,8 +2453,16 @@ async function startServer() {
 export default app;
 export { app };
 
-if (!process.env.VERCEL) {
+const isServerless = Boolean(
+  process.env.VERCEL ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.NOW_REGION ||
+  process.env.VERCEL_ENV
+);
+
+if (!isServerless) {
   startServer();
 }
+
 
 
