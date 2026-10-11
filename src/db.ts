@@ -92,9 +92,9 @@ export function getDbPool(forceRecreate = false): mysql.Pool | null {
       password: activeConfig.password,
       database: activeConfig.database,
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 5,
       queueLimit: 0,
-      connectTimeout: 8000,
+      connectTimeout: 5000,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
     });
@@ -132,7 +132,7 @@ export async function ensureDatabaseAndTables(): Promise<{ ok: boolean; reason?:
           port: activeConfig.port,
           user: activeConfig.user,
           password: activeConfig.password,
-          connectTimeout: 8000,
+          connectTimeout: 5000,
         });
         await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${activeConfig.database}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
         await rootConn.end();
@@ -163,7 +163,7 @@ export async function ensureDatabaseAndTables(): Promise<{ ok: boolean; reason?:
           user: activeConfig.user,
           password: activeConfig.password,
           database: activeConfig.database,
-          connectTimeout: 8000,
+          connectTimeout: 5000,
         });
         await createTablesOnConnection(altConn as any);
         await altConn.end();

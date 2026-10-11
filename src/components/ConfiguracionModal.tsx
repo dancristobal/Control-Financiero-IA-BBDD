@@ -205,10 +205,15 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
         const text = await res.text();
         if (res.status === 404 || text.includes('The page could not be found') || text.includes('404')) {
           throw new Error(
-            'El endpoint /api/mysql/config devolvió 404 Not Found. Si estás en Vercel, asegúrate de que el archivo vercel.json y la función serverless /api/index.ts estén incluidos en el repositorio para enrutar las peticiones al backend Express.'
+            'El endpoint /api/mysql/config devolvió 404 Not Found. Asegúrate de incluir el archivo vercel.json y la función /api/index.ts en tu repositorio de Vercel.'
           );
         }
-        throw new Error(`Respuesta no válida del servidor (HTTP ${res.status}): ${text.slice(0, 100)}`);
+        if (text.includes('FUNCTION_INVOCATION_FAILED')) {
+          throw new Error(
+            'Fallo de invocación en Vercel Serverless Function (HTTP 500). Comprueba que el host MySQL permita conexiones externas (puerto 3306) o revisa la pestaña Functions / Logs en Vercel.'
+          );
+        }
+        throw new Error(`Respuesta no válida del servidor (HTTP ${res.status}): ${text.slice(0, 120)}`);
       }
 
       setMysqlStatus(data);

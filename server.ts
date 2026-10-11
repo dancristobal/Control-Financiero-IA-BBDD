@@ -45,9 +45,26 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-// Body parser for JSON payloads (supporting base64 invoice files up to 50MB)
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Safe body parser for both standalone Express and Vercel Serverless Function runtimes
+app.use((req: any, _res, next) => {
+  // If Vercel or cloud provider runtime already parsed req.body, skip body-parser to avoid hanging
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+    return next();
+  }
+  return express.json({ limit: '50mb' })(req, _res, (err) => {
+    if (err) return next();
+    return express.urlencoded({ extended: true, limit: '50mb' })(req, _res, next);
+  });
+});
+
+// Root API status endpoints
+app.get('/api', (_req, res) => {
+  res.json({ success: true, service: 'Finance AI API', version: '1.0.0' });
+});
+
+app.get('/api/health', (_req, res) => {
+  res.json({ success: true, status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Initialize Google GenAI client (lazy/guarded)
 // Accepts either process.env.MY_GEMINI_API_KEY (custom secret) or process.env.GEMINI_API_KEY
@@ -2451,18 +2468,36 @@ async function startServer() {
 
 // Export default app for Vercel Serverless Functions and other cloud platforms
 export default app;
-export { app };
+export { app, startServer };
 
-const isServerless = Boolean(
-  process.env.VERCEL ||
-  process.env.AWS_LAMBDA_FUNCTION_NAME ||
-  process.env.NOW_REGION ||
-  process.env.VERCEL_ENV
-);
+// Determine if the file is being executed directly via CLI (npm run dev, node dist/server.cjs)
+// rather than imported as a library/serverless function
+const isExecutedDirectly = (() => {
+  if (typeof process === 'undefined' || !process.argv || !process.argv[1]) return false;
+  // If running in Vercel or other serverless environment, never auto-start standalone HTTP listener
+  if (
+    process.env.VERCEL ||
+    process.env.VERCEL_ENV ||
+    process.env.NOW_REGION ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT
+  ) {
+    return false;
+  }
+  const scriptPath = process.argv[1];
+  return (
+    scriptPath.endsWith('server.ts') ||
+    scriptPath.endsWith('server.cjs') ||
+    scriptPath.endsWith('server.js')
+  );
+})();
 
-if (!isServerless) {
-  startServer();
+if (isExecutedDirectly) {
+  startServer().catch((err) => {
+    console.error('Error starting Finance AI server:', err);
+  });
 }
+
 
 
 
