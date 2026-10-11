@@ -195,7 +195,22 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mysqlConfig),
       });
-      const data = await res.json();
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: any;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        if (res.status === 404 || text.includes('The page could not be found') || text.includes('404')) {
+          throw new Error(
+            'El endpoint /api/mysql/config devolvió 404 Not Found. Si estás en Vercel, asegúrate de que el archivo vercel.json y la función serverless /api/index.ts estén incluidos en el repositorio para enrutar las peticiones al backend Express.'
+          );
+        }
+        throw new Error(`Respuesta no válida del servidor (HTTP ${res.status}): ${text.slice(0, 100)}`);
+      }
+
       setMysqlStatus(data);
       if (data.connected) {
         setGuardadoExitosoMysql(true);
@@ -242,7 +257,21 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
           },
         }),
       });
-      const data = await res.json();
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: any;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(
+          res.status === 404
+            ? 'Endpoint /api/mysql/sync-all no encontrado (404). Comprueba la configuración de Serverless Functions en Vercel.'
+            : `Error HTTP ${res.status}: ${text.slice(0, 100)}`
+        );
+      }
+
       setResultadoReplicacionMysql({
         success: data.success,
         mensaje: data.mensaje || (data.success ? `Replicación completa hacia MySQL finalizada.` : data.razonFallo || 'Error al replicar'),
