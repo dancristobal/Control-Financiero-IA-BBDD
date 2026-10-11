@@ -1,0 +1,28 @@
+PROMPT
+ahora la aplicacion esta trabajando con facturas de gastos y proveedores. haz una auditoria exaustiva para que la aplicacion tambien contemple los 3 puntos sigueintes: 1.- Facturación de Ingresos y Cobros (Order-to-Cash), 2.-Impuestos, Contabilidad y Cumplimiento Normativo y 3.-Analítica Financiera y Dashboards directivos
+
+PREGUNTAS
+En el modulo de Facturacion de Ingresos (Order-to-Cash), como prefieres gestionar la emision y cobros a clientes?
+1.	Recommended Creacion manual y OCR de facturas emitidas con clientes y cobros
+2.	Solo registro de ventas globales y seguimiento de cobros
+3.	Gestion completa con presupuestos, albaranes, facturas y cobros
+4.	Otros
+Para el cumplimiento fiscal y contable, que nivel de automatizacion necesitas?
+1.	Recommended Liquidacion IVA repercutido vs soportado, Modelos AEAT y Libro Oficial
+2.	Resumen basico de IVA repercutido y exportacion contable simple
+3.	Cumplimiento avanzado con simulador VeriFactu y Libro Mayor
+4.	Otros
+En los dashboards directivos, que metricas financieras ejecutivas son prioritarias?
+1.	Recommended P&L completo, Margen Neto, EBITDA y Prevision de Tesoreria
+2.	Cuenta de Resultados basica con comparativa Ingresos vs Gastos
+3.	Panel ejecutivo con ratios de liquidez, solvencia y rentabilidad
+4.	Otros
+
+OTROS PROMPTS:
+
+Para el cumplimiento fiscal y contable,Cumplimiento avanzado con simulador VeriFactu y Libro Mayor
+
+Crea una nueva vista 'Panel de Cobros' que visualice la relación 'Order-to-Cash', mostrando facturas emitidas pendientes, vencimientos próximos y un gráfico de flujo de caja esperado comparado con el real para mejorar la visibilidad de los ingresos.
+
+Implementa un componente de 'Preparación de Modelos Fiscales' que agrupe automáticamente las facturas del periodo seleccionado por tipos de IVA, facilitando la generación de los borradores para los modelos 303 y 347 mediante una tabla de resumen fiscal.
+

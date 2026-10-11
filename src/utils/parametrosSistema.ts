@@ -50,7 +50,7 @@ export async function cargarParametrosDesdeMySQL(): Promise<ParametrosSistema | 
   try {
     const res = await fetch('/api/parametros-sistema');
     const data = await res.json();
-    if (data.success && data.parametros && data.fuente === 'mysql') {
+    if (data.success && data.parametros) {
       const merged: ParametrosSistema = {
         ...DEFAULT_PARAMETROS_SISTEMA,
         ...data.parametros,

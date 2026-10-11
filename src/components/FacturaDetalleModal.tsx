@@ -10,6 +10,7 @@ interface FacturaDetalleModalProps {
   onAbrirVisor?: (factura: Factura) => void;
   onUploadToDrive?: (factura: Factura) => Promise<any> | void;
   onEditarEnFormulario?: (factura: Factura) => void;
+  onActualizarEstado?: (factura: Factura, nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida') => Promise<any> | void;
 }
 
 export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
@@ -19,6 +20,7 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
   onAbrirVisor,
   onUploadToDrive,
   onEditarEnFormulario,
+  onActualizarEstado,
 }) => {
   const [subiendoDrive, setSubiendoDrive] = useState(false);
   if (!factura) return null;
@@ -47,17 +49,39 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
                 <h3 className="text-lg font-bold text-slate-100 font-mono">
                   {factura.idFactura}
                 </h3>
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                    factura.estado === 'Pagada'
-                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                      : factura.estado === 'Vencida'
-                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                      : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                  }`}
-                >
-                  {factura.estado}
-                </span>
+                {onActualizarEstado ? (
+                  <select
+                    value={factura.estado}
+                    onChange={(e) => {
+                      const nuevo = e.target.value as 'Pagada' | 'Pendiente' | 'Vencida';
+                      onActualizarEstado(factura, nuevo);
+                    }}
+                    className={`text-xs font-semibold px-2.5 py-0.5 rounded-full cursor-pointer focus:outline-none transition-all ${
+                      factura.estado === 'Pagada'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : factura.estado === 'Vencida'
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    }`}
+                    title="Haz clic para modificar el estado y persistir en MySQL"
+                  >
+                    <option value="Pagada" className="bg-[#0f172a] text-emerald-400">Pagada</option>
+                    <option value="Pendiente" className="bg-[#0f172a] text-amber-400">Pendiente</option>
+                    <option value="Vencida" className="bg-[#0f172a] text-rose-400">Vencida</option>
+                  </select>
+                ) : (
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      factura.estado === 'Pagada'
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        : factura.estado === 'Vencida'
+                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                    }`}
+                  >
+                    {factura.estado}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
                 {factura.nombreProveedor} • {factura.idProveedor}
@@ -122,12 +146,26 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
             </div>
 
             <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800/80">
-              <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Layers className="w-3 h-3 text-slate-500" />
-                <span>Fecha Pago</span>
+              <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Layers className="w-3 h-3 text-slate-500" />
+                  <span>Estado de Pago</span>
+                </span>
+                {onActualizarEstado && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nuevo = factura.estado === 'Pagada' ? 'Pendiente' : 'Pagada';
+                      onActualizarEstado(factura, nuevo);
+                    }}
+                    className="text-[10px] text-sky-400 hover:text-sky-300 underline cursor-pointer"
+                  >
+                    {factura.estado === 'Pagada' ? 'Marcar Pendiente' : 'Marcar Pagada'}
+                  </button>
+                )}
               </div>
               <div className="text-xs font-semibold text-slate-200 mt-1 truncate">
-                {factura.fechaPago}
+                {factura.estado === 'Pagada' ? `Pagada (${factura.fechaPago || 'Confirmado'})` : factura.estado}
               </div>
             </div>
           </div>

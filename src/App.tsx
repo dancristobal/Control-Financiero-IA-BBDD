@@ -36,7 +36,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { generarProveedoresDesdeFacturas, generarAlertasDesdeFacturas } from './utils/sheetDataSync';
-import { obtenerConfiguracionAlertas } from './utils/alertasConfig';
+import { obtenerConfiguracionAlertas, cargarConfiguracionAlertasDesdeMySQL } from './utils/alertasConfig';
 import { obtenerCategoriasGasto, sincronizarCategoriasDesdeBD } from './utils/categoriasGasto';
 import { cargarParametrosDesdeMySQL, obtenerParametrosSistema } from './utils/parametrosSistema';
 import { ThemeMode, getInitialTheme, applyTheme } from './utils/theme';
@@ -232,8 +232,9 @@ export default function App() {
         // 4. Sincronizar catálogo de categorías de gasto desde MySQL
         await sincronizarCategoriasDesdeBD();
 
-        // 5. Cargar parámetros del sistema desde MySQL
+        // 5. Cargar parámetros del sistema y umbrales de alerta desde MySQL
         await cargarParametrosDesdeMySQL();
+        await cargarConfiguracionAlertasDesdeMySQL();
 
         // 6. Cargar análisis financiero IA desde MySQL
         const analisisRes = await fetch('/api/analisis-ejecutivo');
@@ -261,11 +262,23 @@ export default function App() {
           });
         }
 
-        // 8. Cargar proveedores persistidos en MySQL
+        // 8. Cargar proveedores persistidos en MySQL y combinar con facturas activas
         const provsRes = await fetch('/api/proveedores');
         const provsData = await provsRes.json();
         if (montado && provsData.success && Array.isArray(provsData.proveedores) && provsData.proveedores.length > 0) {
-          setProveedores(provsData.proveedores);
+          setProveedores((prev) => {
+            const dbMap = new Map<string, Proveedor>(provsData.proveedores.map((p: Proveedor) => [p.idProveedor, p]));
+            const merged = prev.map((p) => {
+              const enDb = dbMap.get(p.idProveedor);
+              return enDb ? { ...p, ...enDb } : p;
+            });
+            provsData.proveedores.forEach((p: Proveedor) => {
+              if (!merged.some((m) => m.idProveedor === p.idProveedor)) {
+                merged.push(p);
+              }
+            });
+            return merged;
+          });
         }
       } catch (err) {
         console.warn('Carga inicial desde MySQL:', err);
@@ -425,6 +438,13 @@ export default function App() {
                 },
               };
               setAlertas((prev) => [nuevaAlerta, ...prev]);
+
+              // ⚡ Persistir alerta en MySQL (tabla alertas)
+              fetch('/api/alertas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alertas: [nuevaAlerta] }),
+              }).catch((e) => console.warn('Aviso al guardar nueva alerta en MySQL:', e));
             }
           }
         });
@@ -574,6 +594,88 @@ export default function App() {
     handleCambiarEstadoAlerta(id, 'activa');
     setSyncToast({ tipo: 'info', mensaje: 'Alerta reactivada y guardada en base de datos.' });
     setTimeout(() => setSyncToast(null), 3000);
+  };
+
+  // Handler: Actualizar estado de pago de una factura directamente en MySQL
+  const handleActualizarEstadoFactura = async (
+    idFactura: string,
+    nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida',
+    fechaPago?: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const fechaPagoFinal =
+      fechaPago || (nuevoEstado === 'Pagada' ? new Date().toISOString().split('T')[0] : 'Pendiente');
+
+    // 1. Actualización optimista en React state
+    setFacturas((prev) =>
+      prev.map((f) =>
+        f.idFactura === idFactura
+          ? { ...f, estado: nuevoEstado, fechaPago: fechaPagoFinal }
+          : f
+      )
+    );
+
+    // 2. Persistencia directa en MySQL (tabla facturas)
+    try {
+      const res = await fetch(`/api/facturas/${encodeURIComponent(idFactura)}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          estado: nuevoEstado,
+          fechaPago: fechaPagoFinal,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const msg = `Factura ${idFactura} marcada como "${nuevoEstado}" y persistida en MySQL.`;
+        setSyncToast({ tipo: 'success', mensaje: msg });
+        setTimeout(() => setSyncToast(null), 3500);
+        return { success: true, message: msg };
+      } else {
+        throw new Error(data.error || 'Aviso al persistir en MySQL');
+      }
+    } catch (err: any) {
+      console.warn('Error al actualizar estado en MySQL:', err);
+      const msg = `Estado de factura ${idFactura} actualizado temporalmente.`;
+      setSyncToast({ tipo: 'info', mensaje: msg });
+      setTimeout(() => setSyncToast(null), 3500);
+      return { success: false, message: msg };
+    }
+  };
+
+  // Handler: Guardar o actualizar un proveedor directamente en MySQL (tabla proveedores)
+  const handleSaveProveedor = async (
+    proveedor: Proveedor
+  ): Promise<{ success: boolean; message: string }> => {
+    // 1. Actualización optimista en React state
+    setProveedores((prev) => {
+      const idx = prev.findIndex((p) => p.idProveedor === proveedor.idProveedor);
+      if (idx !== -1) {
+        const copy = [...prev];
+        copy[idx] = proveedor;
+        return copy;
+      }
+      return [...prev, proveedor];
+    });
+
+    // 2. Persistir en MySQL (tabla proveedores)
+    try {
+      const res = await fetch('/api/proveedores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proveedores: [proveedor] }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const msg = `Proveedor "${proveedor.nombreProveedor}" actualizado y guardado en MySQL.`;
+        setSyncToast({ tipo: 'success', mensaje: msg });
+        setTimeout(() => setSyncToast(null), 3500);
+        return { success: true, message: msg };
+      }
+      return { success: false, message: data.error || 'Aviso al persistir proveedor' };
+    } catch (e: any) {
+      console.warn('Aviso al guardar proveedor en MySQL:', e);
+      return { success: false, message: e?.message || 'Error de conexión' };
+    }
   };
 
   // Handler: Restablecer datos iniciales de trabajo
@@ -819,6 +921,7 @@ export default function App() {
               onSetGlobalLoading={setGlobalLoading}
               isGlobalLoading={globalLoading.activo}
               onUploadToDrive={handleUploadToDrive}
+              onActualizarEstadoFactura={handleActualizarEstadoFactura}
             />
           )}
 
@@ -829,6 +932,8 @@ export default function App() {
               datosNegocio={datosNegocio}
               onUploadToDrive={handleUploadToDrive}
               onDeleteFactura={handleDeleteFactura}
+              onSaveProveedor={handleSaveProveedor}
+              onActualizarEstadoFactura={handleActualizarEstadoFactura}
             />
           )}
 

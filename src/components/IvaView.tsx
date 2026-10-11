@@ -34,6 +34,7 @@ import { Factura, ParametrosSistema, TipoImpositivoConfigurable, TIPOS_IMPOSITIV
 import {
   procesarDesgloseFiscalCompleto,
   procesarRetencionesIRPF,
+  analizarStringTipoImpositivo,
   CATALOGO_TIPOS_IMPOSITIVOS,
   TABLA_RECARGO_EQUIVALENCIA,
   RegimenFiscalTipo
@@ -79,90 +80,135 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
     };
   }, []);
 
-  // Filter facturas based on period
+  // Función robusta para extraer el mes (0-11) independientemente del formato (YYYY-MM-DD, DD/MM/YYYY o ISO)
+  const obtenerMesDeFecha = (fechaStr?: string): number => {
+    if (!fechaStr) return -1;
+    const s = String(fechaStr).trim();
+    const isoMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (isoMatch) return parseInt(isoMatch[2], 10) - 1;
+    const esMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (esMatch) return parseInt(esMatch[2], 10) - 1;
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? -1 : d.getMonth();
+  };
+
+  // Filtrado de facturas según el periodo fiscal (T1, T2, T3, T4 o ANUAL)
   const facturasPeriodo = useMemo(() => {
     return facturas.filter((f) => {
-      const d = new Date(f.fechaEmision);
-      const m = d.getMonth(); // 0 to 11
+      if (periodo === 'ANUAL') return true;
+      const m = obtenerMesDeFecha(f.fechaEmision);
+      if (m < 0) return true; // Si la fecha no se puede determinar con certeza, incluirla para no omitir importes
       if (periodo === 'T1') return m >= 0 && m <= 2; // Ene, Feb, Mar
       if (periodo === 'T2') return m >= 3 && m <= 5; // Abr, May, Jun
       if (periodo === 'T3') return m >= 6 && m <= 8; // Jul, Ago, Sep
       if (periodo === 'T4') return m >= 9 && m <= 11; // Oct, Nov, Dic
-      return true; // ANUAL
+      return true;
     });
   }, [facturas, periodo]);
 
-  // Overall tax summary for the period with dynamic catalog
+  // Resumen fiscal general del periodo sin filtrar por régimen
   const balancePeriodo = useMemo(() => {
     return procesarDesgloseFiscalCompleto(facturasPeriodo, tiposConfigurados);
   }, [facturasPeriodo, tiposConfigurados]);
 
-  // Overall IRPF withholding summary for the period
+  // Resumen de retenciones IRPF del periodo
   const desgloseIRPF = useMemo(() => {
     return procesarRetencionesIRPF(facturasPeriodo);
   }, [facturasPeriodo]);
 
-  // Facturas filtered by both Period and Tax Regime
+  // Facturas filtradas por Periodo y Régimen Tributario seleccionado
   const facturasFiltradas = useMemo(() => {
     if (filtroRegimen === 'TODOS') return facturasPeriodo;
     if (filtroRegimen === 'RETENCION_IRPF') {
-      return facturasPeriodo.filter((f) => f.aplicaRetencionIRPF || (f.cuotaIRPF && f.cuotaIRPF > 0));
+      return facturasPeriodo.filter((f) => f.aplicaRetencionIRPF || Number(f.cuotaIRPF) > 0);
     }
     if (filtroRegimen === 'RECARGO_EQUIVALENCIA') {
       return facturasPeriodo.filter(
         (f) =>
           f.aplicaRecargoEquivalencia ||
-          (f.cuotaRecargoEquivalencia && f.cuotaRecargoEquivalencia > 0) ||
-          f.tiposIVA?.toLowerCase().includes('re') ||
-          f.tiposIVA?.toLowerCase().includes('recargo')
+          Number(f.cuotaRecargoEquivalencia) > 0 ||
+          String(f.tiposIVA || '').toLowerCase().includes('re') ||
+          String(f.tiposIVA || '').toLowerCase().includes('recargo')
       );
     }
-    if (filtroRegimen === 'IVA_TEMPORAL') {
-      return facturasPeriodo.filter((f) => {
-        const t = (f.tiposIVA || '').toLowerCase();
-        const r = (f.regimenFiscal || '').toLowerCase();
+    return facturasPeriodo.filter((f) => {
+      const info = analizarStringTipoImpositivo(f.tiposIVA || '', tiposConfigurados);
+      if (filtroRegimen === 'IVA_GENERAL') {
         return (
-          r.includes('temporal') ||
-          t.includes('temp') ||
-          t.includes('0%') ||
-          t.includes('5%') ||
-          t.includes('2%') ||
-          t.includes('7.5%')
+          info.regimen === 'IVA_GENERAL' ||
+          (!info.esCanario && !info.esIpsi && !info.esTemporal && [21, 10, 4].includes(info.porcentaje))
         );
-      });
-    }
-    if (filtroRegimen === 'IGIC_CANARIAS') {
-      return facturasPeriodo.filter((f) => {
-        const t = (f.tiposIVA || '').toLowerCase();
-        const r = (f.regimenFiscal || '').toLowerCase();
-        return t.includes('igic') || r.includes('igic') || r.includes('canar');
-      });
-    }
-    if (filtroRegimen === 'IPSI_CEUTA_MELILLA') {
-      return facturasPeriodo.filter((f) => {
-        const t = (f.tiposIVA || '').toLowerCase();
-        const r = (f.regimenFiscal || '').toLowerCase();
-        return t.includes('ipsi') || r.includes('ipsi') || r.includes('ceuta') || r.includes('melilla');
-      });
-    }
-    if (filtroRegimen === 'IVA_GENERAL') {
-      return facturasPeriodo.filter((f) => {
-        const t = (f.tiposIVA || '').toLowerCase();
-        const r = (f.regimenFiscal || '').toLowerCase();
-        if (t.includes('igic') || r.includes('igic') || t.includes('ipsi') || r.includes('ipsi')) return false;
-        if (t.includes('temp') || r.includes('temporal') || t.includes('0%') || t.includes('5%') || t.includes('2%')) return false;
-        return t.includes('21') || t.includes('10') || t.includes('4') || r.includes('general');
-      });
-    }
-    return facturasPeriodo;
-  }, [facturasPeriodo, filtroRegimen]);
+      }
+      if (filtroRegimen === 'IVA_TEMPORAL') {
+        return info.regimen === 'IVA_TEMPORAL' || info.esTemporal;
+      }
+      if (filtroRegimen === 'IGIC_CANARIAS') {
+        return info.regimen === 'IGIC_CANARIAS' || info.esCanario;
+      }
+      if (filtroRegimen === 'IPSI_CEUTA_MELILLA') {
+        return info.regimen === 'IPSI_CEUTA_MELILLA' || info.esIpsi;
+      }
+      return true;
+    });
+  }, [facturasPeriodo, filtroRegimen, tiposConfigurados]);
 
-  // Active breakdown for current filter with dynamic catalog
+  // Desglose activo de impuestos para el filtro y periodo vigente
   const desgloseActivo = useMemo(() => {
     return procesarDesgloseFiscalCompleto(facturasFiltradas, tiposConfigurados);
   }, [facturasFiltradas, tiposConfigurados]);
 
-  // Recharts preparation
+  // 🔍 LOG DE DEPURACIÓN: Verificación de cálculos de IVA del array de facturas
+  React.useEffect(() => {
+    console.group(`[IvaView DEBUG] Auditoría de Cálculos de IVA (${periodo} | Filtro: ${filtroRegimen})`);
+    console.log(`📊 Facturas totales recibidas en props: ${facturas.length}`);
+    console.log(`📅 Facturas en periodo seleccionado (${periodo}): ${facturasPeriodo.length}`);
+    console.log(`🏷️ Facturas tras filtro de régimen (${filtroRegimen}): ${facturasFiltradas.length}`);
+
+    if (facturasFiltradas.length > 0) {
+      console.table(
+        facturasFiltradas.map((f) => {
+          const info = analizarStringTipoImpositivo(f.tiposIVA || '', tiposConfigurados);
+          const base = Number(f.baseImponible || f.importe || 0);
+          const cuota = Number(f.cuotaIVA || 0);
+          return {
+            idFactura: f.idFactura,
+            proveedor: f.nombreProveedor,
+            fecha: f.fechaEmision,
+            baseImponible: base,
+            tiposIVA_raw: f.tiposIVA,
+            porcentajeDetectado: `${info.porcentaje}%`,
+            regimen: info.regimen,
+            cuotaIVA: cuota,
+            cuotaRE: Number(f.cuotaRecargoEquivalencia || 0),
+            cuotaIRPF: Number(f.cuotaIRPF || 0),
+            total: Number(f.total || 0),
+          };
+        })
+      );
+    } else {
+      console.warn(`[IvaView DEBUG] ⚠️ No se detectaron facturas en el periodo ${periodo} con filtro ${filtroRegimen}.`);
+    }
+
+    console.log('📈 Resumen fiscal calculado (desgloseActivo):', {
+      baseTotal: desgloseActivo.baseTotal,
+      cuotaImpuestoTotal: desgloseActivo.cuotaImpuestoTotal,
+      cuotaRETotal: desgloseActivo.cuotaRETotal,
+      totalAcumulado: desgloseActivo.totalAcumulado,
+      numGrupos: desgloseActivo.grupos.length,
+      grupos: desgloseActivo.grupos.map((g) => ({
+        nombre: g.nombre,
+        tipoNum: `${g.tipoNum}%`,
+        base: g.base,
+        cuota: g.cuota,
+        cuotaRE: g.cuotaRE,
+        total: g.total,
+        count: g.count,
+      })),
+    });
+    console.groupEnd();
+  }, [facturas, facturasPeriodo, facturasFiltradas, desgloseActivo, periodo, filtroRegimen, tiposConfigurados]);
+
+  // Preparación de datos para el gráfico Recharts
   const chartData = useMemo(() => {
     return desgloseActivo.grupos.map((g) => ({
       nombre: g.nombre,

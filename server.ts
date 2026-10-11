@@ -36,6 +36,7 @@ import {
   obtenerFacturasDeMySQL,
   eliminarFacturaDeMySQL,
   actualizarEstadoFacturaEnMySQL,
+  actualizarArchivoDriveEnMySQL,
   obtenerProveedoresDeMySQL,
   obtenerAlertasDeMySQL,
   actualizarEstadoAlertaEnMySQL
@@ -1416,15 +1417,15 @@ const uploadToDriveHandler = async (req: any, res: any) => {
         serverFacturas[idx].driveError = undefined;
       }
 
-      // Actualizar en MySQL si está disponible
-      const pool = getDbPool();
-      if (pool && isMySQLAvailable()) {
-        try {
-          await pool.query('UPDATE facturas SET archivo_ruta = ? WHERE id_factura = ?', [
-            result.drive.fileUrl,
-            idFactura
-          ]);
-        } catch {}
+      // Actualizar metadatos de Google Drive en MySQL
+      try {
+        await actualizarArchivoDriveEnMySQL(
+          idFactura,
+          result.drive.fileUrl,
+          result.drive.fileName || driveFileNameCalculado
+        );
+      } catch (dbErr) {
+        console.warn('Aviso al actualizar URL de Drive en MySQL:', dbErr);
       }
 
       return res.json({
@@ -1801,11 +1802,14 @@ app.post('/api/sheets/sync-to-mysql', async (req, res) => {
 // Endpoint: Replicar alertas hacia MariaDB/MySQL con formato JSON compatible (LONGTEXT)
 app.post('/api/mysql/sync-alertas', async (req, res) => {
   try {
-    const { alertas } = req.body;
+    const { alertas, replace } = req.body;
     if (!Array.isArray(alertas) || alertas.length === 0) {
+      if (replace) {
+        await guardarAlertasEnMySQL([], true);
+      }
       return res.json({ success: true, replicadas: 0, errores: [] });
     }
-    const result = await guardarAlertasEnMySQL(alertas);
+    const result = await guardarAlertasEnMySQL(alertas, Boolean(replace));
     return res.json({
       success: result.mysqlDisponible,
       replicadas: result.replicadas,
@@ -1940,6 +1944,30 @@ app.patch('/api/facturas/:id/estado', async (req, res) => {
     return res.json({ success: result.ok, error: result.error });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Error al actualizar estado en MySQL' });
+  }
+});
+
+// Endpoint: Actualizar metadatos de Google Drive de una factura en MySQL
+app.patch('/api/facturas/:id/drive', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { driveFileUrl, driveFolderUrl, driveFileName, driveFolderName } = req.body;
+    if (!id || !driveFileUrl) {
+      return res.status(400).json({ success: false, error: 'Faltan parámetros requeridos (id o driveFileUrl)' });
+    }
+    const result = await actualizarArchivoDriveEnMySQL(id, driveFileUrl, driveFileName);
+    const idx = serverFacturas.findIndex((f) => f.idFactura === id);
+    if (idx !== -1) {
+      serverFacturas[idx].driveGuardado = true;
+      serverFacturas[idx].driveFileUrl = driveFileUrl;
+      if (driveFolderUrl) serverFacturas[idx].driveFolderUrl = driveFolderUrl;
+      if (driveFileName) serverFacturas[idx].driveFileName = driveFileName;
+      if (driveFolderName) serverFacturas[idx].driveFolderName = driveFolderName;
+      serverFacturas[idx].driveError = undefined;
+    }
+    return res.json({ success: result.ok, error: result.error });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Error al actualizar enlace de Drive en MySQL' });
   }
 });
 

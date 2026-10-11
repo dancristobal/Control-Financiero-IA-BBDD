@@ -14,7 +14,10 @@ import {
   X,
   Layers,
   Percent,
-  Eye
+  Eye,
+  Edit3,
+  Save,
+  Check
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Proveedor, Factura, DatosNegocio } from '../types';
@@ -27,6 +30,8 @@ interface ProveedoresViewProps {
   datosNegocio?: DatosNegocio;
   onUploadToDrive?: (factura: Factura) => Promise<any> | void;
   onDeleteFactura?: (factura: Factura) => void;
+  onSaveProveedor?: (proveedor: Proveedor) => Promise<any> | void;
+  onActualizarEstadoFactura?: (idFactura: string, nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida') => Promise<any> | void;
 }
 
 export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
@@ -35,12 +40,17 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
   datosNegocio,
   onUploadToDrive,
   onDeleteFactura,
+  onSaveProveedor,
+  onActualizarEstadoFactura,
 }) => {
   const [busqueda, setBusqueda] = useState('');
   const [filtroRiesgo, setFiltroRiesgo] = useState('TODOS');
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<Proveedor | null>(null);
   const [facturaSeleccionada, setFacturaSeleccionada] = useState<Factura | null>(null);
   const [facturaParaVisor, setFacturaParaVisor] = useState<Factura | null>(null);
+  const [editandoProveedor, setEditandoProveedor] = useState(false);
+  const [proveedorForm, setProveedorForm] = useState<Partial<Proveedor>>({});
+  const [guardandoProv, setGuardandoProv] = useState(false);
 
   // Calculate aggregates for each supplier
   const proveedoresConMetricas = useMemo(() => {
@@ -261,10 +271,34 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
                     >
                       Riesgo {selectedSupplierDetails.riesgoDependencia}
                     </span>
+                    {onSaveProveedor && !editandoProveedor && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProveedorForm({
+                            cif: selectedSupplierDetails.cif || '',
+                            contacto: selectedSupplierDetails.contacto || '',
+                            frecuencia: selectedSupplierDetails.frecuencia || 'Mensual',
+                            tiempoMedioEntrega: selectedSupplierDetails.tiempoMedioEntrega || '48h',
+                            riesgoDependencia: selectedSupplierDetails.riesgoDependencia || 'Medio',
+                          });
+                          setEditandoProveedor(true);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-semibold transition-colors cursor-pointer"
+                        title="Modificar CIF, contacto y riesgo persistiendo en MySQL"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>Editar Ficha</span>
+                      </button>
+                    )}
                   </div>
                   <h3 className="text-xl font-bold text-slate-100 mt-1">
                     {selectedSupplierDetails.nombreProveedor}
                   </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    CIF: <span className="font-mono text-slate-300 font-semibold">{selectedSupplierDetails.cif || 'Sin CIF'}</span> • Contacto:{' '}
+                    <span className="text-slate-300">{selectedSupplierDetails.contacto || 'Sin contacto registrado'}</span>
+                  </p>
                   <p className="text-xs text-slate-400 mt-0.5">
                     Frecuencia: {selectedSupplierDetails.frecuencia} • Tiempo medio de entrega:{' '}
                     {selectedSupplierDetails.tiempoMedioEntrega}
@@ -272,7 +306,10 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
                 </div>
               </div>
               <button
-                onClick={() => setProveedorSeleccionado(null)}
+                onClick={() => {
+                  setProveedorSeleccionado(null);
+                  setEditandoProveedor(false);
+                }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -281,6 +318,122 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-6">
+              {/* Formulario de edición rápida persistente en MySQL */}
+              {editandoProveedor && onSaveProveedor && (
+                <div className="p-4 rounded-xl bg-[#090e18] border border-amber-500/40 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Edit3 className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-bold text-slate-100">
+                        Editar Datos del Proveedor (Persistencia en MySQL)
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                      Tabla proveedores
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">CIF / NIF</label>
+                      <input
+                        type="text"
+                        value={proveedorForm.cif || ''}
+                        onChange={(e) => setProveedorForm((p) => ({ ...p, cif: e.target.value }))}
+                        placeholder="Ej: B-12345678"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#0f172a] border border-slate-700 text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Contacto / Email</label>
+                      <input
+                        type="text"
+                        value={proveedorForm.contacto || ''}
+                        onChange={(e) => setProveedorForm((p) => ({ ...p, contacto: e.target.value }))}
+                        placeholder="pedidos@proveedor.es"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#0f172a] border border-slate-700 text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Nivel de Riesgo</label>
+                      <select
+                        value={proveedorForm.riesgoDependencia || 'Medio'}
+                        onChange={(e) =>
+                          setProveedorForm((p) => ({
+                            ...p,
+                            riesgoDependencia: e.target.value as 'Bajo' | 'Medio' | 'Alto',
+                          }))
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#0f172a] border border-slate-700 text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                      >
+                        <option value="Bajo">Bajo</option>
+                        <option value="Medio">Medio</option>
+                        <option value="Alto">Alto</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Tiempo de Entrega</label>
+                      <input
+                        type="text"
+                        value={proveedorForm.tiempoMedioEntrega || ''}
+                        onChange={(e) => setProveedorForm((p) => ({ ...p, tiempoMedioEntrega: e.target.value }))}
+                        placeholder="Ej: 24-48h"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#0f172a] border border-slate-700 text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Frecuencia Habitual</label>
+                      <input
+                        type="text"
+                        value={proveedorForm.frecuencia || ''}
+                        onChange={(e) => setProveedorForm((p) => ({ ...p, frecuencia: e.target.value }))}
+                        placeholder="Ej: Quincenal, Semanal"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#0f172a] border border-slate-700 text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex items-end gap-2 pt-2 sm:pt-0">
+                      <button
+                        type="button"
+                        disabled={guardandoProv}
+                        onClick={async () => {
+                          if (!selectedSupplierDetails) return;
+                          setGuardandoProv(true);
+                          try {
+                            const actualizado: Proveedor = {
+                              ...selectedSupplierDetails,
+                              ...proveedorForm,
+                              idProveedor: selectedSupplierDetails.idProveedor,
+                              nombreProveedor: selectedSupplierDetails.nombreProveedor,
+                              importeMensual: selectedSupplierDetails.importeMensual,
+                            };
+                            await onSaveProveedor(actualizado);
+                            setProveedorSeleccionado(actualizado);
+                            setEditandoProveedor(false);
+                          } finally {
+                            setGuardandoProv(false);
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>{guardandoProv ? 'Guardando...' : 'Guardar en MySQL'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditandoProveedor(false)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* Aggregated Metrics Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800">
@@ -465,6 +618,11 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
           setFacturaParaVisor(fac);
         }}
         onUploadToDrive={onUploadToDrive}
+        onActualizarEstado={
+          onActualizarEstadoFactura
+            ? (fac, nuevoEstado) => onActualizarEstadoFactura(fac.idFactura, nuevoEstado)
+            : undefined
+        }
       />
 
       {/* Visor Factura Modal when opened from FacturaDetalleModal */}

@@ -411,7 +411,7 @@ export function obtenerRecargoEquivalenciaSugerido(
  * (ej: "21%", "10%", "4%", "5%", "0%", "IGIC 7%", "IGIC 3%", "IPSI 4%", "21% + 5.2% RE")
  */
 export function analizarStringTipoImpositivo(
-  rawStr: string,
+  rawStr: string | number,
   catalogo?: TipoImpositivoConfigurable[]
 ): {
   porcentaje: number;
@@ -426,7 +426,7 @@ export function analizarStringTipoImpositivo(
   regimenEtiqueta: string;
   nombreVisible: string;
 } {
-  const str = (rawStr || '21%').trim();
+  const str = String(rawStr !== undefined && rawStr !== null ? rawStr : '21%').trim();
   const lower = str.toLowerCase();
 
   const esCanario = lower.includes('igic') || lower.includes('canar');
@@ -454,10 +454,16 @@ export function analizarStringTipoImpositivo(
     if (matchPct) {
       porcentaje = parseFloat(matchPct[1].replace(',', '.'));
     } else {
-      // Si sólo hay un número
+      // Si sólo hay un número sin símbolo % (ej: "21", "10", "4", "0.21", "0.10", "0.04")
       const matchNum = str.match(/\d+([.,]\d+)?/);
       if (matchNum) {
-        porcentaje = parseFloat(matchNum[0].replace(',', '.'));
+        const val = parseFloat(matchNum[0].replace(',', '.'));
+        // Si viene en notación decimal menor o igual a 1 (ej: 0.21 -> 21%, 0.10 -> 10%, 0.04 -> 4%)
+        if (val > 0 && val <= 1 && !lower.includes('%')) {
+          porcentaje = Math.round(val * 100 * 100) / 100;
+        } else {
+          porcentaje = val;
+        }
       }
     }
   }
@@ -731,17 +737,44 @@ export function procesarDesgloseFiscalCompleto(
   let tieneExento = false;
 
   facturas.forEach((f) => {
-    const base = Number(f.baseImponible) || 0;
-    const cuota = Number(f.cuotaIVA) || 0;
+    // 1. Base Imponible con fallback a importe o derivación de total
+    let base = Number(f.baseImponible);
+    if (isNaN(base) || base === 0) {
+      base = Number(f.importe) || 0;
+    }
+
+    // 2. Análisis del tipo impositivo (soporta números, strings con % y decimales como 0.21)
+    const info = analizarStringTipoImpositivo(f.tiposIVA || '', catalogo);
+
+    // 3. Cuota de IVA con fallback a total - base o cálculo según porcentaje
+    let cuota = Number(f.cuotaIVA);
+    if (isNaN(cuota) || cuota === 0) {
+      if (f.total && base > 0 && Number(f.total) > base) {
+        cuota = Math.round((Number(f.total) - base) * 100) / 100;
+      } else if (base > 0 && info.porcentaje > 0 && !info.esExento) {
+        cuota = Math.round(base * (info.porcentaje / 100) * 100) / 100;
+      } else {
+        cuota = 0;
+      }
+    }
+
+    // Si no se especificó tiposIVA pero hay base y cuota, inferir porcentaje exacto
+    if ((!f.tiposIVA || String(f.tiposIVA).trim() === '') && base > 0 && cuota > 0) {
+      const calcPct = Math.round((cuota / base) * 100);
+      if ([21, 10, 4, 5, 2, 7, 3].includes(calcPct)) {
+        info.porcentaje = calcPct;
+        info.nombreVisible = `IVA ${calcPct}%`;
+      }
+    }
+
     const cuotaREFactura = Number(f.cuotaRecargoEquivalencia) || 0;
-    const tot = Number(f.total) || base + cuota + cuotaREFactura;
+    const tot = Number(f.total) || Math.round((base + cuota + cuotaREFactura) * 100) / 100;
 
     baseTotal += base;
     cuotaImpuestoTotal += cuota;
     cuotaRETotal += cuotaREFactura;
     totalAcumulado += tot;
 
-    const info = analizarStringTipoImpositivo(f.tiposIVA || '', catalogo);
     const tieneREFactura = Boolean(f.aplicaRecargoEquivalencia || cuotaREFactura > 0 || info.tieneRecargo);
 
     if (info.regimen === 'IVA_GENERAL') tieneGeneral = true;

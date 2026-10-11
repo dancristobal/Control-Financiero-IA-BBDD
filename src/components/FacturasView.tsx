@@ -60,6 +60,11 @@ interface FacturasViewProps {
   onSetGlobalLoading?: (loading: { activo: boolean; mensaje: string; progreso?: number }) => void;
   isGlobalLoading?: boolean;
   onUploadToDrive?: (factura: Factura) => Promise<any> | void;
+  onActualizarEstadoFactura?: (
+    idFactura: string,
+    nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida',
+    fechaPago?: string
+  ) => Promise<any> | void;
 }
 
 export const FacturasView: React.FC<FacturasViewProps> = ({
@@ -73,6 +78,7 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
   onSetGlobalLoading,
   isGlobalLoading,
   onUploadToDrive,
+  onActualizarEstadoFactura,
 }) => {
   // File Upload State
   const [archivosEnCola, setArchivosEnCola] = useState<ArchivoEnProceso[]>([]);
@@ -1694,17 +1700,43 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                       )}
                     </td>
                     <td className="p-3.5 text-center whitespace-nowrap">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          fac.estado === 'Pagada'
-                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                            : fac.estado === 'Vencida'
-                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                        }`}
-                      >
-                        {fac.estado}
-                      </span>
+                      {onActualizarEstadoFactura ? (
+                        <select
+                          value={fac.estado}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            onActualizarEstadoFactura(
+                              fac.idFactura,
+                              e.target.value as 'Pagada' | 'Pendiente' | 'Vencida'
+                            );
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none transition-all ${
+                            fac.estado === 'Pagada'
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : fac.estado === 'Vencida'
+                              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                          }`}
+                          title="Cambiar estado y persistir en MySQL"
+                        >
+                          <option value="Pagada" className="bg-[#0f172a] text-emerald-400">Pagada</option>
+                          <option value="Pendiente" className="bg-[#0f172a] text-amber-400">Pendiente</option>
+                          <option value="Vencida" className="bg-[#0f172a] text-rose-400">Vencida</option>
+                        </select>
+                      ) : (
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            fac.estado === 'Pagada'
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : fac.estado === 'Vencida'
+                              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                          }`}
+                        >
+                          {fac.estado}
+                        </span>
+                      )}
                     </td>
                     <td className="p-3.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
@@ -1887,6 +1919,11 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
           abrirFormularioConFactura(fac);
         }}
         onUploadToDrive={onUploadToDrive}
+        onActualizarEstado={
+          onActualizarEstadoFactura
+            ? (fac, nuevoEstado) => onActualizarEstadoFactura(fac.idFactura, nuevoEstado)
+            : undefined
+        }
       />
 
       {/* Integrated PDF / Document Viewer Modal */}

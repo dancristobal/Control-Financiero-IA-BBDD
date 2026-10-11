@@ -10,8 +10,18 @@ export function obtenerConfiguracionAlertas(): ConfiguracionAlertas {
   return cacheConfiguracionAlertas;
 }
 
+export function establecerConfiguracionAlertasEnMemoria(config: ConfiguracionAlertas): void {
+  cacheConfiguracionAlertas = { ...config };
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('fa_alertas_config_updated', { detail: cacheConfiguracionAlertas })
+    );
+  }
+}
+
 /**
- * Guarda las preferencias de alertas en memoria y emite un evento personalizado
+ * Guarda las preferencias de alertas en memoria y las persiste directamente
+ * en la base de datos MySQL (tabla configuracion_parametros).
  */
 export function guardarConfiguracionAlertas(config: ConfiguracionAlertas): void {
   const configCompleta: ConfiguracionAlertas = {
@@ -19,15 +29,66 @@ export function guardarConfiguracionAlertas(config: ConfiguracionAlertas): void 
     actualizadoEn: new Date().toISOString(),
   };
   cacheConfiguracionAlertas = configCompleta;
+
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('fa_alertas_config_updated', { detail: configCompleta })
     );
   }
+
+  // ⚡ Persistencia directa en la base de datos MySQL (configuracion_parametros)
+  fetch('/api/parametros-sistema', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      parametros: {
+        umbralSubidaModeradaPct: configCompleta.umbralSubidaModeradaPct,
+        umbralSubidaCriticaPct: configCompleta.umbralSubidaCriticaPct,
+        umbralConcentracionProveedorPct: configCompleta.umbralConcentracionPct,
+        notificarConcentracionProveedor: configCompleta.notificarConcentracionProveedor,
+        notificarFacturasVencidas: configCompleta.notificarFacturasVencidas,
+        diasAnticipacionVencimiento: configCompleta.diasAnticipacionVencimiento,
+        actualizadoEn: configCompleta.actualizadoEn,
+      },
+    }),
+  }).catch((err) => {
+    console.warn('Aviso al persistir configuración de alertas en MySQL:', err);
+  });
 }
 
 /**
- * Restablece la configuración a los valores por defecto del sistema
+ * Carga la configuración de alertas directamente desde MySQL
+ */
+export async function cargarConfiguracionAlertasDesdeMySQL(): Promise<ConfiguracionAlertas | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/api/parametros-sistema');
+    const data = await res.json();
+    if (data.success && data.parametros) {
+      const p = data.parametros;
+      const cargada: ConfiguracionAlertas = {
+        umbralSubidaModeradaPct: p.umbralSubidaModeradaPct ?? DEFAULT_CONFIGURACION_ALERTAS.umbralSubidaModeradaPct,
+        umbralSubidaCriticaPct: p.umbralSubidaCriticaPct ?? DEFAULT_CONFIGURACION_ALERTAS.umbralSubidaCriticaPct,
+        umbralConcentracionPct: p.umbralConcentracionProveedorPct ?? DEFAULT_CONFIGURACION_ALERTAS.umbralConcentracionPct,
+        notificarConcentracionProveedor: p.notificarConcentracionProveedor ?? DEFAULT_CONFIGURACION_ALERTAS.notificarConcentracionProveedor,
+        notificarFacturasVencidas: p.notificarFacturasVencidas ?? DEFAULT_CONFIGURACION_ALERTAS.notificarFacturasVencidas,
+        diasAnticipacionVencimiento: p.diasAnticipacionVencimiento ?? DEFAULT_CONFIGURACION_ALERTAS.diasAnticipacionVencimiento,
+        actualizadoEn: p.actualizadoEn,
+      };
+      cacheConfiguracionAlertas = cargada;
+      window.dispatchEvent(
+        new CustomEvent('fa_alertas_config_updated', { detail: cargada })
+      );
+      return cargada;
+    }
+  } catch (err) {
+    console.warn('Aviso al cargar configuración de alertas desde MySQL:', err);
+  }
+  return null;
+}
+
+/**
+ * Restablece la configuración a los valores por defecto del sistema y persiste en MySQL
  */
 export function restablecerConfiguracionAlertas(): ConfiguracionAlertas {
   const config = { ...DEFAULT_CONFIGURACION_ALERTAS, actualizadoEn: new Date().toISOString() };

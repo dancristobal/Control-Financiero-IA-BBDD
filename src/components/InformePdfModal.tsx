@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Factura, Proveedor, Alerta, AnalisisEjecutivo, DatosNegocio, DEFAULT_DATOS_NEGOCIO } from '../types';
 import { obtenerParametrosSistema } from '../utils/parametrosSistema';
+import { analizarStringTipoImpositivo } from '../utils/fiscalidad';
 
 interface InformePdfModalProps {
   isOpen: boolean;
@@ -182,14 +183,21 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
     };
 
     facturas.forEach((f) => {
-      const tipoStr = String(f.tiposIVA || '21%').trim();
-      const base = Number(f.baseImponible || (f.total ? f.total / 1.21 : 0));
-      const cuota = Number(f.cuotaIVA || (f.total ? f.total - base : 0));
-      let key = '21%';
-      if (tipoStr.includes('10')) key = '10%';
-      else if (tipoStr.includes('4')) key = '4%';
-      else if (tipoStr.includes('0') || tipoStr.toLowerCase().includes('exent')) key = '0% / Exento';
-      else if (tipoStr.includes('21')) key = '21%';
+      const info = analizarStringTipoImpositivo(f.tiposIVA || '21%');
+      let base = Number(f.baseImponible);
+      if (isNaN(base) || base === 0) {
+        base = Number(f.importe) || (f.total ? f.total / (1 + (info.porcentaje || 21) / 100) : 0);
+      }
+      let cuota = Number(f.cuotaIVA);
+      if (isNaN(cuota) || cuota === 0) {
+        cuota = f.total && base > 0 ? Math.max(0, Number(f.total) - base) : Math.round(base * ((info.porcentaje || 21) / 100) * 100) / 100;
+      }
+
+      let key = `${info.porcentaje}%`;
+      if (info.esExento || info.porcentaje === 0) key = '0% / Exento';
+      else if (info.esCanario) key = `IGIC ${info.porcentaje}%`;
+      else if (info.esIpsi) key = `IPSI ${info.porcentaje}%`;
+      else if (info.esTemporal) key = `${info.porcentaje}% (Temporal)`;
 
       if (!tipos[key]) tipos[key] = { base: 0, cuota: 0, count: 0 };
       tipos[key].base += base;
