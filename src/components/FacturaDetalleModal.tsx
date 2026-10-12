@@ -23,7 +23,16 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
   onActualizarEstado,
 }) => {
   const [subiendoDrive, setSubiendoDrive] = useState(false);
+  const [feedbackMensaje, setFeedbackMensaje] = useState<string | null>(null);
+
   if (!factura) return null;
+
+  const handleCambiarEstado = async (nuevo: 'Pagada' | 'Pendiente' | 'Vencida') => {
+    if (!onActualizarEstado) return;
+    await onActualizarEstado(factura, nuevo);
+    setFeedbackMensaje('¡Estado actualizado con éxito y guardado en MySQL!');
+    setTimeout(() => setFeedbackMensaje(null), 3500);
+  };
 
   const handleSubirDrive = async () => {
     if (!onUploadToDrive) return;
@@ -54,7 +63,7 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
                     value={factura.estado}
                     onChange={(e) => {
                       const nuevo = e.target.value as 'Pagada' | 'Pendiente' | 'Vencida';
-                      onActualizarEstado(factura, nuevo);
+                      handleCambiarEstado(nuevo);
                     }}
                     className={`text-xs font-semibold px-2.5 py-0.5 rounded-full cursor-pointer focus:outline-none transition-all ${
                       factura.estado === 'Pagada'
@@ -98,6 +107,13 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6">
+          {feedbackMensaje && (
+            <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2.5 shadow-md shadow-emerald-950/30 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="font-semibold">{feedbackMensaje}</span>
+            </div>
+          )}
+
           {/* Key Facts Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800/80">
@@ -156,7 +172,7 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
                     type="button"
                     onClick={() => {
                       const nuevo = factura.estado === 'Pagada' ? 'Pendiente' : 'Pagada';
-                      onActualizarEstado(factura, nuevo);
+                      handleCambiarEstado(nuevo);
                     }}
                     className="text-[10px] text-sky-400 hover:text-sky-300 underline cursor-pointer"
                   >

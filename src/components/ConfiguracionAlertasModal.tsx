@@ -44,12 +44,15 @@ export const ConfiguracionAlertasModal: React.FC<ConfiguracionAlertasModalProps>
   // Cargar estado inicial de configuración de alertas (DB-First)
   const [config, setConfig] = useState<ConfiguracionAlertas>(() => obtenerConfiguracionAlertas());
   const [guardadoExitoso, setGuardadoExitoso] = useState<boolean>(false);
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  const [restableciendo, setRestableciendo] = useState<boolean>(false);
 
   // Sincronizar al abrir si hubo cambios externos
   React.useEffect(() => {
     if (isOpen) {
       setConfig(obtenerConfiguracionAlertas());
       setGuardadoExitoso(false);
+      setFeedbackToast(null);
     }
   }, [isOpen]);
 
@@ -86,11 +89,21 @@ export const ConfiguracionAlertasModal: React.FC<ConfiguracionAlertasModalProps>
     }, 1200);
   };
 
+
   const handleRestablecer = () => {
+    if (restableciendo) return;
+    setRestableciendo(true);
     const defaultCfg = restablecerConfiguracionAlertas();
     setConfig(defaultCfg);
-    setGuardadoExitoso(true);
-    setTimeout(() => setGuardadoExitoso(false), 1200);
+    guardarConfiguracionAlertas(defaultCfg);
+    if (onGuardarYRecalcular) {
+      onGuardarYRecalcular(defaultCfg);
+    }
+    setFeedbackToast('¡Valores predeterminados (8% / 15%) restablecidos con éxito!');
+    setTimeout(() => {
+      setFeedbackToast(null);
+      setRestableciendo(false);
+    }, 1500);
   };
 
   const isConfigModificada =
@@ -147,6 +160,13 @@ export const ConfiguracionAlertasModal: React.FC<ConfiguracionAlertasModalProps>
               <span>
                 <strong>¡Preferencias guardadas con éxito!</strong> Los nuevos umbrales se aplicarán a todas las auditorías y facturas registradas.
               </span>
+            </div>
+          )}
+
+          {feedbackToast && (
+            <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2.5 shadow-md shadow-emerald-950/30 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="font-semibold">{feedbackToast}</span>
             </div>
           )}
 
@@ -444,10 +464,11 @@ export const ConfiguracionAlertasModal: React.FC<ConfiguracionAlertasModalProps>
             id="btn-restablecer-umbrales"
             type="button"
             onClick={handleRestablecer}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors py-1 cursor-pointer order-2 sm:order-1"
+            disabled={restableciendo}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors py-1 cursor-pointer order-2 sm:order-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Restablecer predeterminados (8% / 15%)</span>
+            <RotateCcw className={`w-3.5 h-3.5 ${restableciendo ? 'animate-spin text-rose-400' : ''}`} />
+            <span>{restableciendo ? 'Restableciendo predeterminados...' : 'Restablecer predeterminados (8% / 15%)'}</span>
           </button>
 
           <div className="flex items-center gap-2 w-full sm:w-auto order-1 sm:order-2">

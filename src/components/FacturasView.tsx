@@ -1703,12 +1703,14 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                       {onActualizarEstadoFactura ? (
                         <select
                           value={fac.estado}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             e.stopPropagation();
-                            onActualizarEstadoFactura(
-                              fac.idFactura,
-                              e.target.value as 'Pagada' | 'Pendiente' | 'Vencida'
-                            );
+                            const nuevo = e.target.value as 'Pagada' | 'Pendiente' | 'Vencida';
+                            if (onActualizarEstadoFactura) {
+                              await onActualizarEstadoFactura(fac.idFactura, nuevo);
+                              setNotificacion('¡Estado actualizado con éxito y guardado en MySQL!');
+                              setTimeout(() => setNotificacion(null), 3500);
+                            }
                           }}
                           onClick={(e) => e.stopPropagation()}
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none transition-all ${
