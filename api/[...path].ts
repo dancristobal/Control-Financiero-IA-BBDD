@@ -1,3 +1,4 @@
-import handler from './index';
+// @ts-ignore
+import handler from './index.js';
 
 export default handler;
