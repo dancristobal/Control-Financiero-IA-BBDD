@@ -162,8 +162,9 @@ export function evaluarSubidasPrecioDesdeFacturas(
       // Si la variación supera el umbral configurado por el usuario
       if (varPct >= config.umbralSubidaModeradaPct) {
         const esCritica = varPct >= config.umbralSubidaCriticaPct;
+        const prodSlug = actual.nombreProducto.trim().replace(/\s+/g, '_');
         alertasSubida.push({
-          id: `ALT-PRICE-${actual.idFactura}-${actual.nombreProducto.replace(/\s+/g, '_')}-${i}`,
+          id: `ALT-PRICE-${actual.idFactura}-${prodSlug}`,
           tipo: 'SUBIDA DE PRECIO',
           nivel: esCritica ? 'critica' : 'alta',
           titulo: `Subida en ${actual.nombreProducto} (+${varPct.toFixed(1)}%)`,

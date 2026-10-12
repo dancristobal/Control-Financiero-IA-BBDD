@@ -125,12 +125,17 @@ export function generarAlertasDesdeFacturas(
       f.estado === 'Vencida' ||
       (f.estado === 'Pendiente' && f.fechaVencimiento && f.fechaVencimiento < hoy)
   );
-  vencidas.forEach((f, i) => {
+  const facturasVencidasProcesadas = new Set<string>();
+  vencidas.forEach((f) => {
+    const cleanId = String(f.idFactura || '').trim();
+    if (!cleanId || facturasVencidasProcesadas.has(cleanId)) return;
+    facturasVencidasProcesadas.add(cleanId);
+
     alertas.push({
-      id: `ALT-VENC-${f.idFactura}-${i}`,
+      id: `ALT-VENC-${cleanId}`,
       tipo: 'FACTURA VENCIDA',
       nivel: 'critica',
-      titulo: `Factura vencida: ${f.idFactura} (${f.nombreProveedor})`,
+      titulo: `Factura vencida: ${cleanId} (${f.nombreProveedor})`,
       descripcion: `La factura por importe de ${f.total.toLocaleString('es-ES', {
         style: 'currency',
         currency: 'EUR',

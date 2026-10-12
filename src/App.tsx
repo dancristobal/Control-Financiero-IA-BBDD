@@ -246,19 +246,55 @@ export default function App() {
         // 7. Cargar alertas persistidas en MySQL (fuente de verdad para estados 'resuelta' e 'ignorada')
         const alertasRes = await fetch('/api/alertas');
         const alertasData = await alertasRes.json();
-        if (montado && alertasData.success && Array.isArray(alertasData.alertas) && alertasData.alertas.length > 0) {
+        if (montado && alertasData.success && Array.isArray(alertasData.alertas)) {
           setAlertas((prevAlertas) => {
-            const dbMap = new Map<string, Alerta>(alertasData.alertas.map((a: Alerta) => [a.id, a]));
-            const merged = prevAlertas.map((a) => {
-              const enDb = dbMap.get(a.id);
-              return enDb ? { ...a, ...enDb, estado: enDb.estado || a.estado } : a;
-            });
+            // Mapear alertas de MySQL por id canónico y soportar legacy ids con sufijo -0, -1, etc.
+            const dbMap = new Map<string, Alerta>();
             alertasData.alertas.forEach((a: Alerta) => {
-              if (!merged.some((m) => m.id === a.id)) {
-                merged.push(a);
-              }
+              dbMap.set(a.id, a);
+              const canonId = a.id.replace(/-\d+$/, '');
+              if (!dbMap.has(canonId)) dbMap.set(canonId, a);
             });
-            return merged.length > 0 ? merged : alertasData.alertas;
+
+            // IDs de facturas vigentes para no revivir alertas de facturas eliminadas
+            const activeFacturaIds = new Set(
+              (facturasData.facturas || []).map((f: Factura) => String(f.idFactura).trim().toLowerCase())
+            );
+
+            // Actualizar estado de las alertas generadas desde las facturas actuales
+            const actualizadas = prevAlertas.map((a) => {
+              const canonId = a.id.replace(/-\d+$/, '');
+              const enDb = dbMap.get(a.id) || dbMap.get(canonId);
+              return enDb ? { ...a, estado: enDb.estado || a.estado } : a;
+            });
+
+            // Conservar de la BD solo alertas válidas que no sean de facturas ya borradas
+            const adicionalesValidas: Alerta[] = [];
+            alertasData.alertas.forEach((a: Alerta) => {
+              const canonId = a.id.replace(/-\d+$/, '');
+              if (actualizadas.some((item) => item.id === a.id || item.id === canonId)) return;
+
+              if (a.id.startsWith('ALT-VENC-')) {
+                const facturaIdDeAlerta = a.id.replace('ALT-VENC-', '').replace(/-\d+$/, '').trim().toLowerCase();
+                if (!activeFacturaIds.has(facturaIdDeAlerta)) return;
+              } else if (a.id.startsWith('ALT-PRICE-')) {
+                const partes = a.id.split('-');
+                const facturaIdDeAlerta = partes.length >= 3 ? partes[2].trim().toLowerCase() : '';
+                if (facturaIdDeAlerta && !activeFacturaIds.has(facturaIdDeAlerta)) return;
+              } else if (a.id.startsWith('ALT-CONC-')) {
+                return;
+              }
+
+              adicionalesValidas.push({ ...a, id: canonId });
+            });
+
+            // Deduplicación estricta final por ID único
+            const unicasMap = new Map<string, Alerta>();
+            [...actualizadas, ...adicionalesValidas].forEach((a) => {
+              unicasMap.set(a.id, a);
+            });
+
+            return Array.from(unicasMap.values());
           });
         }
 

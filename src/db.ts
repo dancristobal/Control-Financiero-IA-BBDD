@@ -884,6 +884,10 @@ export async function eliminarFacturaDeMySQL(idFactura: string): Promise<{ ok: b
       await conn.query('DELETE FROM facturas_lineas WHERE id_factura = ?', [normalizedId]);
       await conn.query('DELETE FROM lineas_factura WHERE id_factura = ?', [normalizedId]);
       const [res]: [any, any] = await conn.query('DELETE FROM facturas WHERE id_factura = ?', [normalizedId]);
+      await conn.query('DELETE FROM alertas WHERE id LIKE ? OR id LIKE ?', [
+        `ALT-VENC-${normalizedId}%`,
+        `ALT-PRICE-${normalizedId}%`,
+      ]);
       await conn.commit();
       conn.release();
       return { ok: true, affectedRows: res?.affectedRows || 0 };

@@ -64,8 +64,26 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
     return () => window.removeEventListener('fa_alertas_config_updated', handleConfigUpdate);
   }, []);
 
+  // Deduplicar alertas de entrada por ID canónico y entidad
+  const alertasUnicas = useMemo(() => {
+    const map = new Map<string, Alerta>();
+    const facturasVencidas = new Set<string>();
+    (alertas || []).forEach((a) => {
+      const canonId = (a.id || '').replace(/-\d+$/, '');
+      if (a.tipo === 'FACTURA VENCIDA' && a.id.startsWith('ALT-VENC-')) {
+        const fId = a.id.replace('ALT-VENC-', '').replace(/-\d+$/, '');
+        if (facturasVencidas.has(fId)) return;
+        facturasVencidas.add(fId);
+      }
+      if (!map.has(canonId)) {
+        map.set(canonId, { ...a, id: canonId });
+      }
+    });
+    return Array.from(map.values());
+  }, [alertas]);
+
   const filtradas = useMemo(() => {
-    return alertas.filter((a) => {
+    return alertasUnicas.filter((a) => {
       if (filtroEstado !== 'TODOS' && a.estado !== filtroEstado) {
         return false;
       }
@@ -74,11 +92,11 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
       }
       return true;
     });
-  }, [alertas, filtroEstado, filtroNivel]);
+  }, [alertasUnicas, filtroEstado, filtroNivel]);
 
-  const activasCount = alertas.filter((a) => a.estado === 'activa').length;
-  const criticasCount = alertas.filter((a) => a.estado === 'activa' && a.nivel === 'critica').length;
-  const subidasCount = alertas.filter((a) => a.estado === 'activa' && a.tipo === 'SUBIDA DE PRECIO').length;
+  const activasCount = alertasUnicas.filter((a) => a.estado === 'activa').length;
+  const criticasCount = alertasUnicas.filter((a) => a.estado === 'activa' && a.nivel === 'critica').length;
+  const subidasCount = alertasUnicas.filter((a) => a.estado === 'activa' && a.tipo === 'SUBIDA DE PRECIO').length;
 
   // Manejador para guardar y recalcular alertas según el nuevo umbral
   const handleGuardarYRecalcular = (nuevaConfig: ConfiguracionAlertas) => {
