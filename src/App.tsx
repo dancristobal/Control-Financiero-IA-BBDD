@@ -1020,15 +1020,17 @@ export default function App() {
           )}
 
           {activeTab === 'analisis-ia' && (
-            <AnalisisIAView
-              analisis={analisis}
-              facturas={facturas}
-              proveedores={proveedores}
-              alertas={alertas}
-              datosNegocio={datosNegocio}
-              onOpenPdfReport={() => setIsPdfReportOpen(true)}
-              onUpdateAnalisis={setAnalisis}
-            />
+            <ErrorBoundary fallbackTitle="Error al cargar el Análisis IA" onReset={() => setActiveTab('resumen')}>
+              <AnalisisIAView
+                analisis={analisis}
+                facturas={facturas}
+                proveedores={proveedores}
+                alertas={alertas}
+                datosNegocio={datosNegocio}
+                onOpenPdfReport={() => setIsPdfReportOpen(true)}
+                onUpdateAnalisis={setAnalisis}
+              />
+            </ErrorBoundary>
           )}
         </div>
       </main>

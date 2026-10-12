@@ -44,7 +44,18 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
     contextoOperativo: datosNegocio?.contextoOperativo || DEFAULT_DATOS_NEGOCIO.contextoOperativo,
   };
 
-  const estadoGeneralFormateado = (analisis?.estadoGeneral || '')
+  const safeAnalisis = analisis || {
+    fechaGeneracion: new Date().toISOString(),
+    prioridadSemana: 'Revisión periódica de costes y control de proveedores en la base de datos.',
+    estadoGeneral: 'Análisis financiero general y control de costes corporativos.',
+    principalesGastos: ['Aprovisionamientos y materias primas', 'Suministros energéticos', 'Logística y servicios operacionales'],
+    cambiosImportantes: ['Revisión periódica de precios de proveedores clave.'],
+    alertas: ['Monitoreo de vencimientos y concentración de compras.'],
+    oportunidadesAhorro: ['Negociar descuentos por volumen y agrupación de pedidos.'],
+    tresAcciones: [],
+  };
+
+  const estadoGeneralFormateado = (safeAnalisis?.estadoGeneral || '')
     .replace(/Confitería Caprichos S\.L\./gi, resolvedDatosNegocio.nombre)
     .replace(/Pastelería y Confitería Dulce Capricho S\.L\./gi, resolvedDatosNegocio.nombre)
     .replace(/Dulce Capricho S\.L\./gi, resolvedDatosNegocio.nombre);
@@ -143,14 +154,14 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
                 PRIORIDAD CRÍTICA DE LA SEMANA
               </span>
               <span className="text-xs text-slate-300 font-mono">
-                {new Date(analisis.fechaGeneracion).toLocaleDateString('es-ES')}
+                {new Date(safeAnalisis.fechaGeneracion || Date.now()).toLocaleDateString('es-ES')}
               </span>
             </div>
             <h3 className="text-lg font-bold text-red-100 mt-1">
               Si solo pudieras revisar una sola cosa esta semana...
             </h3>
             <p className="text-sm text-slate-200 font-medium leading-relaxed max-w-4xl pt-1">
-              &quot;{analisis.prioridadSemana}&quot;
+              &quot;{safeAnalisis.prioridadSemana}&quot;
             </p>
           </div>
         </div>
@@ -179,7 +190,7 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
               <span>2. Principales Gastos</span>
             </h3>
             <ul className="mt-4 space-y-3">
-              {analisis.principalesGastos.map((gasto, i) => (
+              {(safeAnalisis.principalesGastos || []).map((gasto, i) => (
                 <li key={i} className="text-xs text-slate-300 flex items-start gap-2.5 leading-relaxed">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1.5"></span>
                   <span>{gasto}</span>
@@ -197,7 +208,7 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
               <span>3. Cambios Importantes</span>
             </h3>
             <ul className="mt-4 space-y-3">
-              {analisis.cambiosImportantes.map((cambio, i) => (
+              {(safeAnalisis.cambiosImportantes || []).map((cambio, i) => (
                 <li key={i} className="text-xs text-slate-300 flex items-start gap-2.5 leading-relaxed">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5"></span>
                   <span>{cambio}</span>
@@ -215,7 +226,7 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
               <span>4. Alertas de Riesgo</span>
             </h3>
             <ul className="mt-4 space-y-3">
-              {analisis.alertas.map((alerta, i) => (
+              {(safeAnalisis.alertas || []).map((alerta, i) => (
                 <li key={i} className="text-xs text-slate-300 flex items-start gap-2.5 leading-relaxed">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0 mt-1.5"></span>
                   <span>{alerta}</span>
@@ -239,7 +250,7 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-          {analisis.oportunidadesAhorro.map((op, idx) => (
+          {(safeAnalisis.oportunidadesAhorro || []).map((op, idx) => (
             <div
               key={idx}
               className="p-4 rounded-xl bg-[#0a0f18] border border-slate-800/90 text-xs text-slate-300 leading-relaxed"
@@ -265,7 +276,7 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-          {analisis.tresAcciones.map((acc, index) => (
+          {(safeAnalisis.tresAcciones || []).map((acc, index) => (
             <div
               key={index}
               className="p-5 rounded-2xl bg-[#0d1424] border border-slate-800 flex flex-col justify-between space-y-3"

@@ -363,6 +363,9 @@ async function createTablesOnConnection(conn: any): Promise<void> {
       id VARCHAR(64) PRIMARY KEY,
       fecha_generacion DATETIME NOT NULL,
       estado_general TEXT NOT NULL,
+      principales_gastos LONGTEXT,
+      cambios_importantes LONGTEXT,
+      alertas LONGTEXT,
       tres_acciones LONGTEXT NOT NULL,
       oportunidades_ahorro LONGTEXT,
       prioridad_semana TEXT,
@@ -370,6 +373,9 @@ async function createTablesOnConnection(conn: any): Promise<void> {
       creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
+  try { await conn.query('ALTER TABLE analisis_financieros_ia ADD COLUMN principales_gastos LONGTEXT'); } catch {}
+  try { await conn.query('ALTER TABLE analisis_financieros_ia ADD COLUMN cambios_importantes LONGTEXT'); } catch {}
+  try { await conn.query('ALTER TABLE analisis_financieros_ia ADD COLUMN alertas LONGTEXT'); } catch {}
 
   // 10. Tabla historial_chat_ia (Sustituye la memoria RAM efímera del Chat IA)
   await conn.query(`
@@ -1340,12 +1346,15 @@ export async function guardarAnalisisEjecutivoEnMySQL(analisis: any): Promise<{ 
     const fecha = analisis.fechaGeneracion ? new Date(analisis.fechaGeneracion) : new Date();
     await conn.query(`
       INSERT INTO analisis_financieros_ia (
-        id, fecha_generacion, estado_general, tres_acciones,
+        id, fecha_generacion, estado_general, principales_gastos, cambios_importantes, alertas, tres_acciones,
         oportunidades_ahorro, prioridad_semana, total_gasto_analizado
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         fecha_generacion = VALUES(fecha_generacion),
         estado_general = VALUES(estado_general),
+        principales_gastos = VALUES(principales_gastos),
+        cambios_importantes = VALUES(cambios_importantes),
+        alertas = VALUES(alertas),
         tres_acciones = VALUES(tres_acciones),
         oportunidades_ahorro = VALUES(oportunidades_ahorro),
         prioridad_semana = VALUES(prioridad_semana),
@@ -1354,6 +1363,9 @@ export async function guardarAnalisisEjecutivoEnMySQL(analisis: any): Promise<{ 
       id,
       fecha,
       analisis.estadoGeneral,
+      JSON.stringify(analisis.principalesGastos || []),
+      JSON.stringify(analisis.cambiosImportantes || []),
+      JSON.stringify(analisis.alertas || []),
       JSON.stringify(analisis.tresAcciones || []),
       JSON.stringify(analisis.oportunidadesAhorro || []),
       analisis.prioridadSemana || '',
@@ -1382,6 +1394,9 @@ export async function obtenerAnalisisEjecutivoDeMySQL(): Promise<any | null> {
         id: r.id,
         fechaGeneracion: r.fecha_generacion ? new Date(r.fecha_generacion).toISOString() : new Date().toISOString(),
         estadoGeneral: r.estado_general,
+        principalesGastos: r.principales_gastos ? JSON.parse(r.principales_gastos) : ['Aprovisionamientos y materias primas', 'Suministros energéticos', 'Logística y servicios operacionales'],
+        cambiosImportantes: r.cambios_importantes ? JSON.parse(r.cambios_importantes) : ['Revisión periódica de precios de proveedores clave.'],
+        alertas: r.alertas ? JSON.parse(r.alertas) : ['Monitoreo de vencimientos y concentración de compras.'],
         tresAcciones: r.tres_acciones ? JSON.parse(r.tres_acciones) : [],
         oportunidadesAhorro: r.oportunidades_ahorro ? JSON.parse(r.oportunidades_ahorro) : [],
         prioridadSemana: r.prioridad_semana || '',
