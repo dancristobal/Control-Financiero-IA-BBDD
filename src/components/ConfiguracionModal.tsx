@@ -163,7 +163,11 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
 
   const cargarEstadoMysql = async () => {
     try {
-      const res = await fetch('/api/mysql/status');
+      const res = await fetch('/api/mysql/status', {
+        headers: {
+          'x-target-path': '/api/mysql/status',
+        },
+      });
       if (res.ok) {
         const data = await res.json();
         setMysqlStatus(data);
@@ -189,10 +193,28 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
   const handleProbarGuardarMysql = async () => {
     setProbandoMysql(true);
     setResultadoReplicacionMysql(null);
+
+    const isCloudHost = typeof window !== 'undefined' && 
+      window.location.hostname !== 'localhost' && 
+      window.location.hostname !== '127.0.0.1';
+    const isLocalhostDb = mysqlConfig.host.trim() === '127.0.0.1' || mysqlConfig.host.trim().toLowerCase() === 'localhost';
+
+    if (isCloudHost && isLocalhostDb) {
+      setResultadoReplicacionMysql({
+        success: false,
+        mensaje: `⚠️ Estás accediendo a la aplicación desplegada en la nube (${window.location.hostname}). En Vercel no es posible conectar a '127.0.0.1' ni a 'localhost' porque no hay un servicio MySQL local en el servidor de Vercel. Debes escribir la IP pública o dominio de tu servidor MySQL/MariaDB (ej: db.tudominio.com o la IP de tu VPS/Hosting) y habilitar conexiones remotas en el puerto 3306.`,
+      });
+      setProbandoMysql(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/mysql/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-target-path': '/api/mysql/config',
+        },
         body: JSON.stringify(mysqlConfig),
       });
 
@@ -210,7 +232,7 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
         }
         if (text.includes('FUNCTION_INVOCATION_FAILED')) {
           throw new Error(
-            'Fallo de invocación en Vercel Serverless Function (HTTP 500). Comprueba que el host MySQL permita conexiones externas (puerto 3306) o revisa la pestaña Functions / Logs en Vercel.'
+            'Fallo de invocación en Vercel Serverless Function (HTTP 500). El host MySQL no respondió a tiempo (>6s) o no permite conexiones externas al puerto 3306. Si usas cPanel, Plesk o VPS, revisa "MySQL Remoto" y añade "%" o autoriza la conexión externa.'
           );
         }
         throw new Error(`Respuesta no válida del servidor (HTTP ${res.status}): ${text.slice(0, 120)}`);
@@ -247,7 +269,10 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
       // En arquitectura DB-First se envía el catálogo y configuración actual directamente a MySQL
       const res = await fetch('/api/mysql/sync-all', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-target-path': '/api/mysql/sync-all',
+        },
         body: JSON.stringify({
           facturas: [],
           proveedores: [],
@@ -300,7 +325,10 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
       try {
         const res = await fetch('/api/mysql/export-sql', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-target-path': '/api/mysql/export-sql',
+          },
           body: JSON.stringify({
             datosNegocio: negocio,
             parametros: parametros,
@@ -2467,6 +2495,17 @@ function extractDriveFolderId(input) {
                     <span>Parámetros de Conexión a MySQL / MariaDB</span>
                   </div>
                   <span className="text-[10px] text-slate-500 font-mono">finance_ai_db</span>
+                </div>
+
+                {/* Aviso para despliegues en Vercel / Nube */}
+                <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-800/40 text-[11px] space-y-1 text-slate-300">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                    <Info className="w-3.5 h-3.5 shrink-0" />
+                    <span>Conexión desde Vercel / Nube</span>
+                  </div>
+                  <p className="text-slate-400 leading-relaxed">
+                    Si tu aplicación está desplegada en <strong>Vercel</strong>, recuerda que <code>127.0.0.1</code> y <code>localhost</code> no funcionan (apuntan al contenedor interno de Vercel). Introduce el <strong>dominio o IP pública</strong> de tu servidor MySQL (ej: <code>db.tudominio.com</code> o IP de tu hosting/VPS) y habilita el acceso externo al puerto <strong>3306</strong> en el cortafuegos / cPanel (<em>MySQL Remoto</em> &gt; permitir <code>%</code>).
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">

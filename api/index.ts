@@ -2,16 +2,37 @@ import app from '../server';
 
 export default function handler(req: any, res: any) {
   try {
-    // If Vercel rewrote incoming request path to /api, recover original requested path
-    const originalUrl = (
-      req.headers['x-vercel-original-url'] ||
-      req.headers['x-forwarded-uri'] ||
-      req.headers['x-matched-path'] ||
-      req.url
-    ) as string;
+    const rawUrl = req.url || '';
+    let targetPath = '';
 
-    if (originalUrl && originalUrl.startsWith('/api') && req.url === '/api') {
-      req.url = originalUrl;
+    // 1. Recover path from Vercel query parameter rewrite (__path=/api/...)
+    if (rawUrl.includes('__path=')) {
+      try {
+        const urlObj = new URL(rawUrl, 'http://localhost');
+        const p = urlObj.searchParams.get('__path');
+        if (p) {
+          urlObj.searchParams.delete('__path');
+          const remaining = urlObj.searchParams.toString();
+          targetPath = p + (remaining ? '?' + remaining : '');
+        }
+      } catch {}
+    }
+
+    // 2. Recover path from custom headers or proxy headers
+    if (!targetPath && req.headers) {
+      targetPath = (
+        req.headers['x-target-path'] ||
+        req.headers['x-original-path'] ||
+        req.headers['x-vercel-original-url'] ||
+        req.headers['x-forwarded-uri'] ||
+        req.headers['x-matched-path'] ||
+        ''
+      ) as string;
+    }
+
+    // 3. Normalize req.url to point to the actual target route
+    if (targetPath && targetPath.startsWith('/api')) {
+      req.url = targetPath;
     }
 
     return app(req, res);

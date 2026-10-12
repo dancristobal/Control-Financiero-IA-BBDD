@@ -47,8 +47,24 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Safe body parser for both standalone Express and Vercel Serverless Function runtimes
 app.use((req: any, _res, next) => {
+  // Normalize rewritten URLs from Vercel (__path or x-target-path)
+  try {
+    const rawUrl = req.url || '';
+    if (rawUrl.includes('__path=')) {
+      const urlObj = new URL(rawUrl, 'http://localhost');
+      const customPath = urlObj.searchParams.get('__path');
+      if (customPath) {
+        urlObj.searchParams.delete('__path');
+        const remaining = urlObj.searchParams.toString();
+        req.url = customPath + (remaining ? '?' + remaining : '');
+      }
+    } else if (req.headers && req.headers['x-target-path']) {
+      req.url = req.headers['x-target-path'] as string;
+    }
+  } catch {}
+
   // If Vercel or cloud provider runtime already parsed req.body, skip body-parser to avoid hanging
-  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+  if (req.body !== undefined && req.body !== null) {
     return next();
   }
   return express.json({ limit: '50mb' })(req, _res, (err) => {
@@ -1722,7 +1738,18 @@ app.get('/api/mysql/status', async (req, res) => {
   });
 });
 
-// Endpoint: Actualizar configuración de MySQL y probar conexión
+// Endpoint: Obtener o Actualizar configuración de MySQL y probar conexión
+app.get('/api/mysql/config', (_req, res) => {
+  const cfg = getDbConfig();
+  return res.json({
+    success: true,
+    host: cfg.host,
+    port: cfg.port,
+    database: cfg.database,
+    user: cfg.user,
+  });
+});
+
 app.post('/api/mysql/config', async (req, res) => {
   try {
     const { host, port, user, password, database } = req.body || {};
@@ -1735,7 +1762,7 @@ app.post('/api/mysql/config', async (req, res) => {
     });
 
     const check = await testDbConnection();
-    return res.json({
+    return res.status(200).json({
       success: check.connected,
       connected: check.connected,
       message: check.message,

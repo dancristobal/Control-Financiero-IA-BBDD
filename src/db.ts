@@ -94,7 +94,7 @@ export function getDbPool(forceRecreate = false): mysql.Pool | null {
       waitForConnections: true,
       connectionLimit: 5,
       queueLimit: 0,
-      connectTimeout: 5000,
+      connectTimeout: 3500,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
     });
@@ -110,6 +110,22 @@ export function getDbPool(forceRecreate = false): mysql.Pool | null {
  * Garantiza que la base de datos y todas las tablas existan en MySQL.
  */
 export async function ensureDatabaseAndTables(): Promise<{ ok: boolean; reason?: string }> {
+  const isVercel = !!(
+    process.env.VERCEL ||
+    process.env.VERCEL_ENV ||
+    process.env.NOW_REGION ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT
+  );
+
+  // En Vercel Serverless, 127.0.0.1 y localhost apuntan al contenedor efímero sin MySQL
+  if (isVercel && (activeConfig.host === '127.0.0.1' || activeConfig.host === 'localhost')) {
+    lastErrorReason =
+      "En Vercel (servidor Serverless en la nube) no es posible conectar a '127.0.0.1' ni a 'localhost'. Debes indicar la IP pública o dominio de tu servidor MySQL/MariaDB remoto (ej: db.tudominio.com o IP pública) y habilitar conexiones remotas en el puerto 3306.";
+    isDbConnected = false;
+    return { ok: false, reason: lastErrorReason };
+  }
+
   const pool = getDbPool();
   if (!pool) {
     return { ok: false, reason: lastErrorReason || 'Pool de MySQL no disponible' };
@@ -132,7 +148,7 @@ export async function ensureDatabaseAndTables(): Promise<{ ok: boolean; reason?:
           port: activeConfig.port,
           user: activeConfig.user,
           password: activeConfig.password,
-          connectTimeout: 5000,
+          connectTimeout: 3500,
         });
         await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${activeConfig.database}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
         await rootConn.end();
@@ -154,8 +170,8 @@ export async function ensureDatabaseAndTables(): Promise<{ ok: boolean; reason?:
       }
     }
 
-    // Fallback alternativo para localhost si 127.0.0.1 falló por socket en Windows/Mac
-    if ((directErr?.code === 'ECONNREFUSED' || directErr?.code === 'ENOTFOUND') && activeConfig.host === '127.0.0.1') {
+    // Fallback alternativo para localhost si 127.0.0.1 falló en entorno local (no en Vercel)
+    if (!isVercel && (directErr?.code === 'ECONNREFUSED' || directErr?.code === 'ENOTFOUND') && activeConfig.host === '127.0.0.1') {
       try {
         const altConn = await mysql.createConnection({
           host: 'localhost',
@@ -163,7 +179,7 @@ export async function ensureDatabaseAndTables(): Promise<{ ok: boolean; reason?:
           user: activeConfig.user,
           password: activeConfig.password,
           database: activeConfig.database,
-          connectTimeout: 5000,
+          connectTimeout: 3500,
         });
         await createTablesOnConnection(altConn as any);
         await altConn.end();
@@ -412,27 +428,71 @@ export async function testDbConnection(): Promise<{
   port: number;
   database: string;
 }> {
-  const start = Date.now();
-  const check = await ensureDatabaseAndTables();
-  const latencyMs = Math.max(1, Date.now() - start);
-  if (check.ok) {
+  const isVercel = !!(
+    process.env.VERCEL ||
+    process.env.VERCEL_ENV ||
+    process.env.NOW_REGION ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT
+  );
+
+  if (isVercel && (activeConfig.host === '127.0.0.1' || activeConfig.host === 'localhost')) {
     return {
-      connected: true,
-      latencyMs,
-      message: `Conexión exitosa a MySQL en ${activeConfig.host}:${activeConfig.port} (Base de datos: ${activeConfig.database})`,
+      connected: false,
+      latencyMs: 1,
+      message: `En Vercel (servidor Serverless en la nube) no es posible conectar a '127.0.0.1' ni a 'localhost'. Debes indicar la IP pública o dominio de tu servidor MySQL/MariaDB remoto (ej: db.tudominio.com o IP pública) y habilitar conexiones remotas en el puerto 3306.`,
       host: activeConfig.host,
       port: activeConfig.port,
       database: activeConfig.database,
     };
   }
-  return {
-    connected: false,
-    latencyMs,
-    message: check.reason || `No se pudo conectar a MySQL en ${activeConfig.host}:${activeConfig.port}`,
-    host: activeConfig.host,
-    port: activeConfig.port,
-    database: activeConfig.database,
-  };
+
+  const start = Date.now();
+  let timer: any = null;
+  const timeoutPromise = new Promise<{ ok: boolean; reason: string }>((resolve) => {
+    timer = setTimeout(() => {
+      resolve({
+        ok: false,
+        reason: `Tiempo de espera agotado (>5.5s) al conectar con ${activeConfig.host}:${activeConfig.port}. Comprueba que el servidor MySQL permita conexiones externas en el puerto 3306 y que el cortafuegos no esté bloqueando la IP de Vercel.`
+      });
+    }, 5500);
+  });
+
+  try {
+    const check = await Promise.race([ensureDatabaseAndTables(), timeoutPromise]);
+    if (timer) clearTimeout(timer);
+    const latencyMs = Math.max(1, Date.now() - start);
+
+    if (check.ok) {
+      return {
+        connected: true,
+        latencyMs,
+        message: `Conexión exitosa a MySQL en ${activeConfig.host}:${activeConfig.port} (Base de datos: ${activeConfig.database})`,
+        host: activeConfig.host,
+        port: activeConfig.port,
+        database: activeConfig.database,
+      };
+    }
+    return {
+      connected: false,
+      latencyMs,
+      message: check.reason || `No se pudo conectar a MySQL en ${activeConfig.host}:${activeConfig.port}`,
+      host: activeConfig.host,
+      port: activeConfig.port,
+      database: activeConfig.database,
+    };
+  } catch (err: any) {
+    if (timer) clearTimeout(timer);
+    const latencyMs = Math.max(1, Date.now() - start);
+    return {
+      connected: false,
+      latencyMs,
+      message: err?.message || `Error al conectar con MySQL en ${activeConfig.host}:${activeConfig.port}`,
+      host: activeConfig.host,
+      port: activeConfig.port,
+      database: activeConfig.database,
+    };
+  }
 }
 
 /**
