@@ -1566,7 +1566,7 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
             {isSaving ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Guardando en Sheets y Drive...</span>
+                <span>Guardando en MySQL y Drive...</span>
               </>
             ) : (
               <>

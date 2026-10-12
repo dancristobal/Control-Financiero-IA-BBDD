@@ -1685,7 +1685,41 @@ app.get('/api/mysql/status', async (req, res) => {
   if (check.connected && pool) {
     try {
       const [fRows]: any = await pool.query('SELECT COUNT(*) as count FROM facturas').catch(() => [[{ count: 0 }]]);
-      const [pRows]: any = await pool.query('SELECT COUNT(*) as count FROM proveedores').catch(() => [[{ count: 0 }]]);
+      facturasCount = Number(fRows[0]?.count || 0);
+
+      // Si hay facturas registradas en MySQL, consolidar la tabla de proveedores para eliminar huérfanos/demo
+      if (facturasCount > 0) {
+        try {
+          // 1. Asegurar que los proveedores de las facturas actuales estén registrados en la tabla proveedores
+          await pool.query(`
+            INSERT INTO proveedores (id_proveedor, nombre_proveedor, importe_mensual)
+            SELECT 
+              COALESCE(NULLIF(f.id_proveedor, ''), CONCAT('PROV-', SUBSTRING(MD5(f.nombre_proveedor), 1, 8))),
+              TRIM(f.nombre_proveedor),
+              SUM(f.total)
+            FROM facturas f
+            WHERE f.nombre_proveedor IS NOT NULL AND TRIM(f.nombre_proveedor) != ''
+            GROUP BY f.nombre_proveedor, f.id_proveedor
+            ON DUPLICATE KEY UPDATE 
+              nombre_proveedor = VALUES(nombre_proveedor)
+          `).catch(() => {});
+
+          // 2. Eliminar proveedores huérfanos/demo antiguos que no correspondan a ninguna factura existente
+          await pool.query(`
+            DELETE FROM proveedores
+            WHERE id_proveedor NOT IN (SELECT DISTINCT id_proveedor FROM facturas WHERE id_proveedor IS NOT NULL AND TRIM(id_proveedor) != '')
+              AND nombre_proveedor NOT IN (SELECT DISTINCT nombre_proveedor FROM facturas WHERE nombre_proveedor IS NOT NULL AND TRIM(nombre_proveedor) != '')
+          `).catch(() => {});
+        } catch {}
+      }
+
+      // Conteo de proveedores: si hay facturas, contar los proveedores únicos de las facturas activas
+      const [pRows]: any = await pool.query(
+        facturasCount > 0
+          ? 'SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(nombre_proveedor), ""), id_proveedor)) as count FROM facturas WHERE nombre_proveedor IS NOT NULL AND TRIM(nombre_proveedor) != ""'
+          : 'SELECT COUNT(*) as count FROM proveedores'
+      ).catch(() => [[{ count: 0 }]]);
+
       const [lRows]: any = await pool.query('SELECT COUNT(*) as count FROM lineas_factura').catch(() => [[{ count: 0 }]]);
       const [aRows]: any = await pool.query('SELECT COUNT(*) as count FROM alertas').catch(() => [[{ count: 0 }]]);
       const [cRows]: any = await pool.query('SELECT COUNT(*) as count FROM categorias_gasto').catch(() => [[{ count: 0 }]]);
@@ -1696,7 +1730,6 @@ app.get('/api/mysql/status', async (req, res) => {
       const [aeRows]: any = await pool.query('SELECT COUNT(*) as count FROM declaraciones_aeat').catch(() => [[{ count: 0 }]]);
       const [gRows]: any = await pool.query('SELECT COUNT(*) as count FROM integraciones_google').catch(() => [[{ count: 0 }]]);
 
-      facturasCount = Number(fRows[0]?.count || 0);
       proveedoresCount = Number(pRows[0]?.count || 0);
       lineasCount = Number(lRows[0]?.count || 0);
       alertasCount = Number(aRows[0]?.count || 0);

@@ -160,8 +160,13 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
     mensaje: string;
   } | null>(null);
   const [descargandoSql, setDescargandoSql] = useState(false);
+  const [verificandoEstado, setVerificandoEstado] = useState(false);
 
-  const cargarEstadoMysql = async () => {
+  const cargarEstadoMysql = async (mostrarFeedback = false) => {
+    if (mostrarFeedback) {
+      setVerificandoEstado(true);
+      setResultadoReplicacionMysql(null);
+    }
     try {
       const res = await fetch('/api/mysql/status', {
         headers: {
@@ -180,8 +185,41 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
             user: data.user || prev.user,
           }));
         }
+
+        if (mostrarFeedback) {
+          if (data.connected) {
+            setResultadoReplicacionMysql({
+              success: true,
+              mensaje: `¡Estado comprobado con éxito! MySQL activo en ${data.host}:${data.port} (${data.latencyMs || 1} ms). Registros actuales: ${data.facturasCount || 0} facturas y ${data.proveedoresCount || 0} proveedores.`,
+            });
+          } else {
+            setResultadoReplicacionMysql({
+              success: false,
+              mensaje: `No se pudo conectar con MySQL: ${data.message || 'Servidor inaccesible'}`,
+            });
+          }
+        }
+      } else {
+        const text = await res.text();
+        if (mostrarFeedback) {
+          setResultadoReplicacionMysql({
+            success: false,
+            mensaje: `Error al comprobar estado del servidor (HTTP ${res.status}): ${text.slice(0, 100)}`,
+          });
+        }
       }
-    } catch {}
+    } catch (e: any) {
+      if (mostrarFeedback) {
+        setResultadoReplicacionMysql({
+          success: false,
+          mensaje: `Error al verificar estado de MySQL: ${e?.message || e}`,
+        });
+      }
+    } finally {
+      if (mostrarFeedback) {
+        setVerificandoEstado(false);
+      }
+    }
   };
 
   useEffect(() => {
@@ -398,6 +436,9 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
         driveFolderId: driveFolderId.trim(),
       });
       const res = await fetch(`/api/sheets/verify?${queryParams.toString()}`, {
+        headers: {
+          'x-target-path': '/api/sheets/verify',
+        },
         signal: AbortSignal.timeout(25000),
       });
       const data = await res.json();
@@ -1030,7 +1071,7 @@ function extractDriveFolderId(input) {
                 Configuración General y Conexiones
               </h3>
               <p className="text-xs text-slate-400">
-                Empresa • Parámetros • Google Drive (Recibos) • MySQL DB-First • Servidor • Apariencia
+                Empresa • Categoría gasto • Configuración fiscal • Parámetros • Google Drive (Recibos) • MySQL DB-First • Servidor • Apariencia
               </p>
             </div>
           </div>
@@ -2267,7 +2308,8 @@ function extractDriveFolderId(input) {
                     type="button"
                     onClick={handleVerificarConexion}
                     disabled={verificando || !endpointUrl}
-                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold transition-colors border border-slate-700"
+                    title={!endpointUrl ? 'Introduce la URL de tu Google Apps Script para poder verificar' : 'Comprobar en tiempo real la conexión y permisos de Google Drive'}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold transition-colors border border-slate-700 cursor-pointer disabled:cursor-not-allowed"
                   >
                     {verificando ? (
                       <>
@@ -2437,11 +2479,13 @@ function extractDriveFolderId(input) {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={cargarEstadoMysql}
-                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700"
+                    onClick={() => cargarEstadoMysql(true)}
+                    disabled={verificandoEstado}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer shadow-sm"
+                    title="Comprobar en tiempo real la conexión a MySQL, latencia y recuento de facturas y proveedores"
                   >
-                    <RefreshCw className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Verificar Estado</span>
+                    <RefreshCw className={`w-3.5 h-3.5 text-rose-400 ${verificandoEstado ? 'animate-spin' : ''}`} />
+                    <span>{verificandoEstado ? 'Verificando...' : 'Verificar Estado'}</span>
                   </button>
                   <button
                     type="button"
@@ -2459,6 +2503,45 @@ function extractDriveFolderId(input) {
                   </button>
                 </div>
               </div>
+
+              {/* Notificación de resultado de verificación (Visible de inmediato en la parte superior sin necesidad de desplazamiento) */}
+              {resultadoReplicacionMysql && (
+                <div
+                  className={`p-3.5 rounded-xl border text-xs leading-relaxed transition-all shadow-md animate-in fade-in duration-150 ${
+                    resultadoReplicacionMysql.success
+                      ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-100 ring-1 ring-emerald-500/20'
+                      : 'bg-rose-950/60 border-rose-500/50 text-rose-100 ring-1 ring-rose-500/20'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      {resultadoReplicacionMysql.success ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <div className="font-semibold text-slate-100 mb-0.5">
+                          {resultadoReplicacionMysql.success
+                            ? '✓ Estado de MySQL Comprobado'
+                            : '⚠️ Aviso de Conexión MySQL'}
+                        </div>
+                        <div className="text-[11.5px] leading-relaxed opacity-95">
+                          {resultadoReplicacionMysql.mensaje}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setResultadoReplicacionMysql(null)}
+                      className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors shrink-0 cursor-pointer"
+                      title="Cerrar aviso"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Mensaje explicativo sobre entorno Cloud vs XAMPP Local */}
               {!mysqlStatus?.connected && (
@@ -2630,25 +2713,6 @@ function extractDriveFolderId(input) {
                     </button>
                   </div>
                 </div>
-
-                {resultadoReplicacionMysql && (
-                  <div
-                    className={`p-3 rounded-xl border text-xs leading-relaxed ${
-                      resultadoReplicacionMysql.success
-                        ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
-                        : 'bg-rose-950/40 border-rose-500/40 text-rose-200'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      {resultadoReplicacionMysql.success ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                      )}
-                      <div>{resultadoReplicacionMysql.mensaje}</div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -2828,9 +2892,34 @@ function extractDriveFolderId(input) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-[#0d131f] flex items-center justify-between shrink-0">
-          <div className="text-[11px] text-slate-500">
-            Estado: {config.status === 'sincronizado' ? 'Conectado a Sheets' : 'Modo Demostración / Local'}
+        <div className="px-6 py-4 border-t border-slate-800 bg-[#0d131f] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+          <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  mysqlStatus?.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                }`}
+              />
+              <span className="text-slate-300 font-medium">
+                {mysqlStatus?.connected
+                  ? 'MySQL DB-First Conectado'
+                  : 'MySQL Desconectado / Local'}
+              </span>
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  endpointUrl?.trim() ? 'bg-sky-400' : 'bg-slate-500'
+                }`}
+              />
+              <span>
+                Google Drive (Recibos):{' '}
+                <strong className={endpointUrl?.trim() ? 'text-sky-300' : 'text-slate-400'}>
+                  {endpointUrl?.trim() ? 'Configurado' : 'Sin configurar'}
+                </strong>
+              </span>
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <button
