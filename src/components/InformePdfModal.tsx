@@ -98,6 +98,17 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
     prioridadSemana: 'Optimización de costes y control de proveedores.'
   };
 
+  const estadoGeneralFormateado = useMemo(() => {
+    let texto = anal.estadoGeneral || '';
+    if (negocio.nombre) {
+      texto = texto
+        .replace(/Confitería Caprichos S\.L\./gi, negocio.nombre)
+        .replace(/Pastelería y Confitería Dulce Capricho S\.L\./gi, negocio.nombre)
+        .replace(/Dulce Capricho S\.L\./gi, negocio.nombre);
+    }
+    return texto;
+  }, [anal.estadoGeneral, negocio.nombre]);
+
   const totalGasto = facturas.reduce((sum, f) => sum + (f.total || 0), 0);
   const baseTotal = facturas.reduce((sum, f) => sum + (f.baseImponible || 0), 0);
   const cuotaIvaTotal = facturas.reduce((sum, f) => sum + (f.cuotaIVA || 0), 0);
@@ -367,7 +378,7 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
                 Diagnóstico de la Dirección Financiera ({negocio.nombre})
               </h3>
               <p className="text-sm text-slate-800 leading-relaxed">
-                {anal.estadoGeneral}
+                {estadoGeneralFormateado}
               </p>
             </div>
 

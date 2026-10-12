@@ -43,6 +43,11 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
     sector: datosNegocio?.sector || DEFAULT_DATOS_NEGOCIO.sector,
     contextoOperativo: datosNegocio?.contextoOperativo || DEFAULT_DATOS_NEGOCIO.contextoOperativo,
   };
+
+  const estadoGeneralFormateado = (analisis?.estadoGeneral || '')
+    .replace(/Confitería Caprichos S\.L\./gi, resolvedDatosNegocio.nombre)
+    .replace(/Pastelería y Confitería Dulce Capricho S\.L\./gi, resolvedDatosNegocio.nombre)
+    .replace(/Dulce Capricho S\.L\./gi, resolvedDatosNegocio.nombre);
   const nombreNegocio = resolvedDatosNegocio.nombre;
   const sectorNegocio = resolvedDatosNegocio.sector || DEFAULT_DATOS_NEGOCIO.sector;
 
@@ -160,7 +165,7 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
           </h3>
         </div>
         <p className="text-sm text-slate-300 leading-relaxed max-w-4xl">
-          {analisis.estadoGeneral}
+          {estadoGeneralFormateado}
         </p>
       </div>
 
