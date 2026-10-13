@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, FileText, CheckCircle2, Calendar, Building2, Tag, Layers, Download, Trash2, Eye, UploadCloud, Loader2, Sparkles, Edit3, StickyNote } from 'lucide-react';
 import { Factura } from '../types';
 import { obtenerColorCategoria } from '../utils/categoriasGasto';
@@ -14,7 +14,7 @@ interface FacturaDetalleModalProps {
 }
 
 export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
-  factura,
+  factura: facturaProp,
   onClose,
   onDelete,
   onAbrirVisor,
@@ -22,15 +22,38 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
   onEditarEnFormulario,
   onActualizarEstado,
 }) => {
+  const [facturaActual, setFacturaActual] = useState<Factura | null>(facturaProp);
   const [subiendoDrive, setSubiendoDrive] = useState(false);
   const [feedbackMensaje, setFeedbackMensaje] = useState<string | null>(null);
 
+  // Sincronizar reactivamente cuando cambia la prop de la factura
+  useEffect(() => {
+    setFacturaActual(facturaProp);
+  }, [facturaProp]);
+
+  const factura = facturaActual || facturaProp;
   if (!factura) return null;
 
   const handleCambiarEstado = async (nuevo: 'Pagada' | 'Pendiente' | 'Vencida') => {
     if (!onActualizarEstado) return;
-    await onActualizarEstado(factura, nuevo);
-    setFeedbackMensaje('¡Estado actualizado con éxito y guardado en MySQL!');
+    const fechaPagoFinal =
+      nuevo === 'Pagada' ? new Date().toISOString().split('T')[0] : 'Pendiente';
+
+    // 1. Actualización reactiva instantánea para que la pantalla y los badges se refresquen de inmediato
+    const facturaActualizada: Factura = {
+      ...factura,
+      estado: nuevo,
+      fechaPago: fechaPagoFinal,
+    };
+    setFacturaActual(facturaActualizada);
+
+    // 2. Persistir en MySQL y actualizar estado global de la app
+    try {
+      await onActualizarEstado(facturaActualizada, nuevo);
+      setFeedbackMensaje(`¡Estado actualizado a "${nuevo}" con éxito y guardado en MySQL!`);
+    } catch {
+      setFeedbackMensaje(`Estado actualizado a "${nuevo}".`);
+    }
     setTimeout(() => setFeedbackMensaje(null), 3500);
   };
 

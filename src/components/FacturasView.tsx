@@ -1953,7 +1953,21 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
         onUploadToDrive={onUploadToDrive}
         onActualizarEstado={
           onActualizarEstadoFactura
-            ? (fac, nuevoEstado) => onActualizarEstadoFactura(fac.idFactura, nuevoEstado)
+            ? async (fac, nuevoEstado) => {
+                await onActualizarEstadoFactura(fac.idFactura, nuevoEstado);
+                setFacturaSeleccionada((prev) =>
+                  prev && prev.idFactura === fac.idFactura
+                    ? {
+                        ...prev,
+                        estado: nuevoEstado,
+                        fechaPago:
+                          nuevoEstado === 'Pagada'
+                            ? new Date().toISOString().split('T')[0]
+                            : 'Pendiente',
+                      }
+                    : prev
+                );
+              }
             : undefined
         }
       />
