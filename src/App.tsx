@@ -314,7 +314,15 @@ export default function App() {
                 merged.push(p);
               }
             });
-            return merged;
+            // Asegurar unicidad absoluta por idProveedor para evitar claves duplicadas en React
+            const unicasMap = new Map<string, Proveedor>();
+            merged.forEach((p) => {
+              const key = (p.idProveedor || p.nombreProveedor || Math.random().toString()).trim();
+              if (!unicasMap.has(key)) {
+                unicasMap.set(key, p);
+              }
+            });
+            return Array.from(unicasMap.values());
           });
         }
       } catch (err) {

@@ -1613,21 +1613,37 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                       {fac.baseImponible.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                     </td>
                     <td className="p-3.5 text-right font-mono whitespace-nowrap">
-                      <div className="text-sky-400">
-                        +{fac.cuotaIVA.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                        <span className="text-[10px] text-slate-300 ml-1">({fac.tiposIVA})</span>
-                      </div>
-                      {(fac.aplicaRetencionIRPF || (fac.cuotaIRPF && fac.cuotaIRPF > 0)) && (
-                        <div className="text-[10px] text-emerald-400 font-medium mt-0.5">
-                          -{fac.cuotaIRPF?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € ({fac.porcentajeIRPF || 15}% IRPF)
-                        </div>
-                      )}
+                      {(() => {
+                        // IVA
+                        const cuotaIVA = fac.cuotaIVA ?? 0;
+                        const signIva = cuotaIVA > 0 ? '+' : '';
+                        const formattedIva = cuotaIVA.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        
+                        // IRPF
+                        const cuotaIRPF = fac.cuotaIRPF ?? 0;
+                        const signIrpf = cuotaIRPF > 0 ? '-' : '';
+                        const formattedIrpf = cuotaIRPF.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        
+                        return (
+                          <>
+                            <div className="text-sky-400">
+                              {signIva}{formattedIva} €
+                              <span className="text-[10px] text-slate-300 ml-1">({fac.tiposIVA})</span>
+                            </div>
+                            {(fac?.aplicaRetencionIRPF && cuotaIRPF !== 0) && (
+                              <div className="text-[10px] text-emerald-400 font-medium mt-0.5">
+                                {signIrpf}{formattedIrpf} € ({fac.porcentajeIRPF || 15}% IRPF)
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="p-3.5 text-right font-mono whitespace-nowrap">
                       <div className="font-bold text-rose-400">
                         {fac.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                       </div>
-                      {(fac.aplicaRetencionIRPF || (fac.cuotaIRPF && fac.cuotaIRPF > 0)) && (
+                      {(fac?.aplicaRetencionIRPF && (fac?.cuotaIRPF ?? 0) !== 0) && (
                         <div className="text-[9px] text-emerald-400 font-normal">
                           Líquido tras IRPF
                         </div>

@@ -1393,18 +1393,33 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
               </div>
               <div className="flex items-center justify-between text-sky-400">
                 <span>(+) Cuota {tiposIVA.toUpperCase().includes('IPSI') ? 'IPSI' : tiposIVA.toUpperCase().includes('IGIC') ? 'IGIC' : 'IVA'} ({tiposIVA}):</span>
-                <span>+{cuotaIVA.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                <span>
+                  {(() => {
+                    const rawStr = `+${cuotaIVA.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    return rawStr.replace(/^([+-])\s*([+-])/, '$2');
+                  })()} €
+                </span>
               </div>
-              {aplicaRecargoEquivalencia && cuotaRecargoEquivalencia > 0 && (
+              {aplicaRecargoEquivalencia && cuotaRecargoEquivalencia !== 0 && (
                 <div className="flex items-center justify-between text-purple-400">
                   <span>(+) Recargo de Equivalencia ({porcentajeRE}%):</span>
-                  <span>+{cuotaRecargoEquivalencia.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                  <span>
+                    {(() => {
+                      const rawStr = `${(cuotaRecargoEquivalencia ?? 0) > 0 ? '+' : ''}${cuotaRecargoEquivalencia.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                      return rawStr.replace(/^([+-])\s*([+-])/, '$2');
+                    })()} €
+                  </span>
                 </div>
               )}
-              {aplicaRetencionIRPF && cuotaIRPF > 0 && (
+              {aplicaRetencionIRPF && cuotaIRPF !== 0 && (
                 <div className="flex items-center justify-between text-emerald-400 font-semibold bg-emerald-950/20 px-1.5 py-0.5 rounded">
                   <span>(-) Retención IRPF ({porcentajeIRPF}% - {conceptoRetencionIRPF === 'ARRENDAMIENTO' ? 'Mod. 115' : 'Mod. 111'}):</span>
-                  <span>-{cuotaIRPF.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                  <span>
+                    {(() => {
+                      const rawStr = `${(cuotaIRPF ?? 0) > 0 ? '-' : ''}${cuotaIRPF.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                      return rawStr.replace(/^([+-])\s*([+-])/, '$2');
+                    })()} €
+                  </span>
                 </div>
               )}
               <div className="border-t border-slate-800 pt-1.5 flex items-center justify-between font-bold text-sm">
