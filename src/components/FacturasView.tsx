@@ -722,7 +722,7 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
       escapeCSV(f.categoriaGasto),
       escapeCSV((f as any).metodoPago || ''),
       escapeCSV(f.estado),
-      escapeCSV(f.driveFileUrl || ''),
+      escapeCSV(f.driveFileUrl || f.archivoRuta || (f as any).archivo_ruta || ''),
       escapeCSV(f.driveFolderName || ''),
       escapeCSV((f as any).notas || (f as any).observaciones || '')
     ].join(';'));
@@ -1655,49 +1655,79 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                       })()}
                     </td>
                     <td className="p-3.5 whitespace-nowrap">
-                      {fac.driveFileUrl ? (
-                        <div className="flex items-center gap-1.5">
-                          <a
-                            href={fac.driveFileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="px-2 py-0.5 rounded bg-sky-950/60 hover:bg-sky-900/60 text-sky-300 border border-sky-500/25 text-[10px] font-mono flex items-center gap-1 max-w-[140px] transition-colors cursor-pointer"
-                            title={`Abrir archivo en Google Drive\nCarpeta: ${fac.driveFolderName || fac.nombreProveedor}\nArchivo: ${fac.driveFileName || `${fac.idFactura} ${fac.fechaEmision}.pdf`}`}
-                          >
-                            <span className="text-sky-400 shrink-0">📁</span>
-                            <span className="truncate">{fac.driveFolderName || fac.nombreProveedor}</span>
-                            <span className="text-sky-400 hover:text-sky-300 font-bold text-xs shrink-0">↗</span>
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          {fac.driveError && (
-                            <span
-                              className="px-1.5 py-0.5 rounded bg-amber-950/40 text-amber-300 border border-amber-500/30 text-[10px] font-mono cursor-help"
-                              title={`Aviso Google Drive: ${fac.driveError}`}
-                            >
-                              ⚠️ Aviso
-                            </span>
-                          )}
-                          {fac.archivoBase64 && onUploadToDrive && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onUploadToDrive(fac);
-                              }}
-                              className="px-2 py-0.5 rounded bg-sky-600/20 hover:bg-sky-600/35 text-sky-300 border border-sky-500/30 text-[10px] font-mono font-semibold cursor-pointer transition-colors"
-                              title="Subir ahora a Google Drive (creará carpeta del proveedor si no existe)"
-                            >
-                              + Drive
-                            </button>
-                          )}
-                          <span className="text-[10px] text-slate-500 font-mono">
-                            {fac.archivoBase64 ? 'Local' : 'Sin archivo'}
-                          </span>
-                        </div>
-                      )}
+                      {(() => {
+                        const ruta = String(fac.driveFileUrl || fac.archivoRuta || (fac as any).archivo_ruta || '').trim();
+                        const esUrlValida = Boolean(ruta && (ruta.startsWith('http://') || ruta.startsWith('https://')));
+                        const nombreArchivo = fac.archivoNombre || (ruta && !esUrlValida ? ruta.split('/').pop() : '') || '';
+
+                        if (esUrlValida) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={ruta}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="px-2 py-0.5 rounded bg-sky-950/60 hover:bg-sky-900/60 text-sky-300 border border-sky-500/25 text-[10px] font-mono flex items-center gap-1 max-w-[150px] transition-colors cursor-pointer"
+                                title={`Abrir archivo en Google Drive\nURL: ${ruta}\nCarpeta: ${fac.driveFolderName || fac.nombreProveedor}\nArchivo: ${fac.driveFileName || nombreArchivo || `${fac.idFactura} ${fac.fechaEmision}.pdf`}`}
+                              >
+                                <span className="text-sky-400 shrink-0">📁</span>
+                                <span className="truncate">{fac.driveFolderName || fac.nombreProveedor || 'Google Drive'}</span>
+                                <span className="text-sky-400 hover:text-sky-300 font-bold text-xs shrink-0">↗</span>
+                              </a>
+                            </div>
+                          );
+                        }
+
+                        if (ruta && !esUrlValida) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-mono flex items-center gap-1 max-w-[150px] truncate"
+                                title={`Ruta de archivo: ${ruta}`}
+                              >
+                                <span className="text-slate-400 shrink-0">📄</span>
+                                <span className="truncate">{nombreArchivo || ruta}</span>
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            {fac.driveError && (
+                              <span
+                                className="px-1.5 py-0.5 rounded bg-amber-950/40 text-amber-300 border border-amber-500/30 text-[10px] font-mono cursor-help"
+                                title={`Aviso Google Drive: ${fac.driveError}`}
+                              >
+                                ⚠️ Aviso
+                              </span>
+                            )}
+                            {fac.archivoBase64 && onUploadToDrive && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUploadToDrive(fac);
+                                }}
+                                className="px-2 py-0.5 rounded bg-sky-600/20 hover:bg-sky-600/35 text-sky-300 border border-sky-500/30 text-[10px] font-mono font-semibold cursor-pointer transition-colors"
+                                title="Subir ahora a Google Drive (creará carpeta del proveedor si no existe)"
+                              >
+                                + Drive
+                              </button>
+                            )}
+                            {fac.archivoBase64 ? (
+                              <span className="text-[10px] text-slate-400 font-mono">Local</span>
+                            ) : nombreArchivo ? (
+                              <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 max-w-[120px] truncate" title={nombreArchivo}>
+                                📄 <span className="truncate">{nombreArchivo}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 font-mono">Sin archivo</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="p-3.5 text-center whitespace-nowrap">
                       {onActualizarEstadoFactura ? (

@@ -406,28 +406,36 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
                   {factura.driveFileName || `${factura.idFactura} ${factura.fechaEmision}.pdf`}
                 </span>
               </div>
-              {factura.driveGuardado && factura.driveFileUrl ? (
-                <div className="pt-1 flex items-center justify-end gap-2 text-xs">
-                  {onAbrirVisor && (
-                    <button
-                      type="button"
-                      onClick={() => onAbrirVisor(factura)}
-                      className="px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 border border-sky-500/30 text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Ver en Visor Integrado</span>
-                    </button>
-                  )}
-                  <a
-                    href={factura.driveFileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sky-400 hover:text-sky-300 underline text-[11px] font-medium"
-                  >
-                    Abrir factura en Google Drive ↗
-                  </a>
-                </div>
-              ) : (
+              {(() => {
+                const rutaDrive = String(factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta || '').trim();
+                const esUrl = Boolean(rutaDrive && (rutaDrive.startsWith('http://') || rutaDrive.startsWith('https://')));
+                if (esUrl) {
+                  return (
+                    <div className="pt-1 flex items-center justify-end gap-2 text-xs">
+                      {onAbrirVisor && (
+                        <button
+                          type="button"
+                          onClick={() => onAbrirVisor(factura)}
+                          className="px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 border border-sky-500/30 text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Ver en Visor Integrado</span>
+                        </button>
+                      )}
+                      <a
+                        href={rutaDrive}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-400 hover:text-sky-300 underline text-[11px] font-medium"
+                      >
+                        Abrir factura en Google Drive ↗
+                      </a>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              {!String(factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta || '').trim() && (
                 <div className="pt-2 space-y-2">
                   {factura.driveError && (
                     <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/30 text-[11px] text-amber-300">

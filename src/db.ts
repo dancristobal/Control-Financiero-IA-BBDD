@@ -690,7 +690,7 @@ export async function guardarFacturasEnMySQL(facturas: any[]): Promise<{ replica
           f.categoriaGastoJustificacion || '',
           f.notas || '',
           f.archivoNombre || `${idFactura}.pdf`,
-          f.driveFileUrl || null
+          f.driveFileUrl || f.archivoRuta || (f as any).archivo_ruta || null
         ]);
 
         // 3. Guardar líneas de factura (garantizando registros en facturas_lineas y lineas_factura)
@@ -800,7 +800,9 @@ export async function obtenerFacturasDeMySQL(): Promise<any[]> {
         categoria_gasto_justificacion AS categoriaGastoJustificacion,
         notas,
         archivo_nombre AS archivoNombre,
-        archivo_ruta AS driveFileUrl
+        archivo_ruta AS driveFileUrl,
+        archivo_ruta AS archivoRuta,
+        archivo_ruta AS archivo_ruta
       FROM facturas
       ORDER BY fecha_emision DESC
     `);
@@ -864,7 +866,7 @@ export async function obtenerFacturasDeMySQL(): Promise<any[]> {
       aplicaRecargoEquivalencia: Boolean(f.aplicaRecargoEquivalencia),
       aplicaRetencionIRPF: Boolean(f.aplicaRetencionIRPF),
       sincronizadoSheets: true,
-      driveGuardado: Boolean(f.driveFileUrl && String(f.driveFileUrl).startsWith('http')),
+      driveGuardado: Boolean((f.driveFileUrl || f.archivoRuta || f.archivo_ruta) && String(f.driveFileUrl || f.archivoRuta || f.archivo_ruta).startsWith('http')),
       lineas: lineasPorFactura[f.idFactura] || [],
     }));
   } catch (err: any) {

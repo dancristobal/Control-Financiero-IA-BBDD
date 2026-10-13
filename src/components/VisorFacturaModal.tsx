@@ -109,8 +109,8 @@ export const VisorFacturaModal: React.FC<VisorFacturaModalProps> = ({
     }
 
     // 1. Si tenemos URL de Google Drive válida, priorizar el visor integrado de Google Drive (evita bloqueos de Chrome con blobs grandes)
-    if (factura.driveFileUrl && factura.driveFileUrl.startsWith('http')) {
-      const driveUrl = factura.driveFileUrl;
+    const driveUrl = String(factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta || '').trim();
+    if (driveUrl && driveUrl.startsWith('http')) {
       const matchId =
         driveUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
         driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
@@ -303,9 +303,9 @@ export const VisorFacturaModal: React.FC<VisorFacturaModalProps> = ({
             </button>
 
             {/* Enlace directo a Google Drive si existe */}
-            {factura.driveFileUrl && (
+            {(factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta) && (
               <a
-                href={factura.driveFileUrl}
+                href={factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 text-xs font-semibold transition-colors"
@@ -353,7 +353,7 @@ export const VisorFacturaModal: React.FC<VisorFacturaModalProps> = ({
                       ¿Problemas de visualización?
                     </button>
                     <a
-                      href={factura.driveFileUrl}
+                      href={factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sky-300 hover:underline flex items-center gap-1 text-[11px]"
@@ -374,7 +374,7 @@ export const VisorFacturaModal: React.FC<VisorFacturaModalProps> = ({
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <a
-                    href={factura.driveFileUrl}
+                    href={factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-sky-950/40"
@@ -729,9 +729,9 @@ export const VisorFacturaModal: React.FC<VisorFacturaModalProps> = ({
                 <p className="text-[11px] text-slate-400 truncate">
                   Carpeta: <span className="text-slate-200">{factura.driveFolderName || factura.nombreProveedor}</span>
                 </p>
-                {factura.driveFileUrl && (
+                {(factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta) && (
                   <a
-                    href={factura.driveFileUrl}
+                    href={factura.driveFileUrl || factura.archivoRuta || (factura as any).archivo_ruta}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-sky-400 hover:text-sky-300 underline flex items-center gap-1 pt-1"

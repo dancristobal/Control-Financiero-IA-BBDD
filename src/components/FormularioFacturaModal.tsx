@@ -76,8 +76,20 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
 }) => {
   // File state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileBase64, setFileBase64] = useState<string>(archivoInicial?.base64Data || facturaInicial?.archivoBase64 || '');
-  const [fileName, setFileName] = useState<string>(archivoInicial?.fileName || facturaInicial?.archivoNombre || '');
+  const [fileBase64, setFileBase64] = useState<string>(
+    archivoInicial?.base64Data || facturaInicial?.archivoBase64 || ''
+  );
+  const [fileName, setFileName] = useState<string>(() => {
+    return (
+      archivoInicial?.fileName ||
+      facturaInicial?.archivoNombre ||
+      facturaInicial?.driveFileName ||
+      (facturaInicial?.archivoRuta && !facturaInicial.archivoRuta.startsWith('http') ? facturaInicial.archivoRuta.split('/').pop() : '') ||
+      (facturaInicial?.archivo_ruta && !facturaInicial.archivo_ruta.startsWith('http') ? facturaInicial.archivo_ruta.split('/').pop() : '') ||
+      ((facturaInicial?.driveFileUrl || facturaInicial?.archivoRuta || (facturaInicial as any)?.archivo_ruta) ? 'Documento en Google Drive' : '') ||
+      ''
+    );
+  });
   const [fileMimeType, setFileMimeType] = useState<string>(archivoInicial?.mimeType || 'application/pdf');
 
   // AI Extraction State
@@ -284,11 +296,26 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
         setNotas(facturaInicial.notas || '');
         setLineas(facturaInicial.lineas || []);
         setSugerenciaIaActiva(Boolean(facturaInicial.categoriaGastoSugerida || facturaInicial.categoriaGastoJustificacion));
-      }
-      if (archivoInicial) {
-        setFileBase64(archivoInicial.base64Data || '');
+
+        const nombreDoc =
+          archivoInicial?.fileName ||
+          facturaInicial.archivoNombre ||
+          facturaInicial.driveFileName ||
+          (facturaInicial.archivoRuta && !facturaInicial.archivoRuta.startsWith('http') ? facturaInicial.archivoRuta.split('/').pop() : '') ||
+          (facturaInicial.archivo_ruta && !facturaInicial.archivo_ruta.startsWith('http') ? facturaInicial.archivo_ruta.split('/').pop() : '') ||
+          ((facturaInicial.driveFileUrl || facturaInicial.archivoRuta || (facturaInicial as any)?.archivo_ruta) ? 'Documento en Google Drive' : '');
+
+        setFileName(nombreDoc || '');
+        setFileBase64(archivoInicial?.base64Data || facturaInicial.archivoBase64 || '');
+        setFileMimeType(archivoInicial?.mimeType || 'application/pdf');
+      } else if (archivoInicial) {
         setFileName(archivoInicial.fileName || '');
+        setFileBase64(archivoInicial.base64Data || '');
         setFileMimeType(archivoInicial.mimeType || 'application/pdf');
+      } else {
+        setFileName('');
+        setFileBase64('');
+        setFileMimeType('application/pdf');
       }
     }
   }, [isOpen, facturaInicial, archivoInicial]);
@@ -662,8 +689,10 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
         notas: notas.trim() || undefined,
         lineas: lineas,
         archivoNombre: fileName || facturaInicial?.archivoNombre,
+        archivoRuta: facturaInicial?.archivoRuta || (facturaInicial as any)?.archivo_ruta || facturaInicial?.driveFileUrl,
+        archivo_ruta: facturaInicial?.archivo_ruta || facturaInicial?.archivoRuta || facturaInicial?.driveFileUrl,
         archivoBase64: fileBase64 || facturaInicial?.archivoBase64,
-        driveFileUrl: facturaInicial?.driveFileUrl,
+        driveFileUrl: facturaInicial?.driveFileUrl || facturaInicial?.archivoRuta || (facturaInicial as any)?.archivo_ruta,
         driveFolderUrl: facturaInicial?.driveFolderUrl,
         driveGuardado: facturaInicial?.driveGuardado,
       };
@@ -723,9 +752,26 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
                 <FileText className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+                <div className="text-xs font-semibold text-slate-200 flex items-center gap-2 flex-wrap">
                   <span>Documento Origen:</span>
                   <span className="font-mono text-rose-400 truncate max-w-xs">{fileName || 'Ningún archivo cargado todavía'}</span>
+                  {(() => {
+                    const urlDrive = facturaInicial?.driveFileUrl || facturaInicial?.archivoRuta || (facturaInicial as any)?.archivo_ruta;
+                    if (urlDrive && String(urlDrive).startsWith('http')) {
+                      return (
+                        <a
+                          href={urlDrive}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-mono text-sky-400 hover:text-sky-300 underline inline-flex items-center gap-1"
+                          title="Abrir en Google Drive"
+                        >
+                          📁 Google Drive ↗
+                        </a>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Admite archivos PDF, JPG y PNG. Al seleccionar uno nuevo, Gemini lo analizará automáticamente.

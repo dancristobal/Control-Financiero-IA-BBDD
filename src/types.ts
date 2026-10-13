@@ -55,6 +55,8 @@ export interface Factura {
   lineas?: ProductoLinea[];
   notas?: string;
   archivoNombre?: string;
+  archivoRuta?: string;
+  archivo_ruta?: string;
   archivoBase64?: string;
   sincronizadoSheets?: boolean;
   driveFileUrl?: string;
