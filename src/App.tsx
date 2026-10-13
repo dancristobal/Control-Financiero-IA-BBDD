@@ -210,9 +210,10 @@ export default function App() {
         if (montado && driveData.success && driveData.config) {
           setSheetsConfig((prev) => ({
             ...prev,
+            sheetId: driveData.config.sheetId || prev.sheetId,
             endpointUrl: driveData.config.endpointUrl || prev.endpointUrl,
             driveFolderId: driveData.config.driveFolderId || prev.driveFolderId,
-            status: 'sincronizado',
+            status: driveData.config.endpointUrl ? 'sincronizado' : 'pendiente',
           }));
         }
 
@@ -798,7 +799,7 @@ export default function App() {
               {datosNegocio.nombre}
             </span>
             <span className="text-slate-600 hidden sm:inline">•</span>
-            <span className="text-xs font-semibold text-rose-400 capitalize">
+            <span className="text-xs font-semibold text-rose-400">
               {activeTab === 'resumen'
                 ? 'Panel de Control Financiero'
                 : activeTab === 'facturas'
@@ -811,7 +812,11 @@ export default function App() {
                 ? 'Alertas de Riesgo'
                 : activeTab === 'iva'
                 ? 'Resumen Fiscal de IVA'
-                : 'Análisis Ejecutivo Gemini'}
+                : activeTab === 'modelos-fiscales'
+                ? 'Modelos Fiscales AEAT'
+                : activeTab === 'analisis-ia'
+                ? 'Análisis Ejecutivo Gemini'
+                : 'Panel de Control'}
             </span>
           </div>
 
@@ -989,6 +994,10 @@ export default function App() {
                 setActiveTab('facturas');
               }}
               facturas={facturas}
+              datosNegocio={datosNegocio}
+              onUploadToDrive={handleUploadToDrive}
+              onDeleteFactura={handleDeleteFactura}
+              onActualizarEstadoFactura={handleActualizarEstadoFactura}
               onActualizarAlertas={(nuevas) => {
                 setAlertas(nuevas);
                 fetch('/api/mysql/sync-alertas', {

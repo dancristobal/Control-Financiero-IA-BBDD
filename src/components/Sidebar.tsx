@@ -225,9 +225,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
               <span className="truncate">DB-First & Drive</span>
-              <span className="flex items-center gap-1 text-slate-400">
-                <HardDrive className="w-2.5 h-2.5 text-indigo-400" />
-                {facturasCount} reg
+              <span className="flex items-center gap-1">
+                <HardDrive className={`w-2.5 h-2.5 ${sheetsConfig?.endpointUrl ? 'text-sky-400' : 'text-slate-500'}`} />
+                <span className={sheetsConfig?.endpointUrl ? 'text-sky-300 font-medium' : 'text-slate-400'}>
+                  {sheetsConfig?.endpointUrl ? 'Drive Activo' : `${facturasCount} reg`}
+                </span>
               </span>
             </div>
           </div>

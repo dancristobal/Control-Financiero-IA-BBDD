@@ -86,6 +86,57 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
   const [sheetId, setSheetId] = useState(config.sheetId || '');
   const [endpointUrl, setEndpointUrl] = useState(config.endpointUrl || '');
   const [driveFolderId, setDriveFolderId] = useState(config.driveFolderId || '');
+  const [guardadoExitosoDrive, setGuardadoExitosoDrive] = useState(false);
+
+  // Sincronizar campos de Google Drive / Sheets al cambiar la prop config
+  useEffect(() => {
+    if (config) {
+      if (config.endpointUrl) setEndpointUrl(config.endpointUrl);
+      if (config.driveFolderId) setDriveFolderId(config.driveFolderId);
+      if (config.sheetId) setSheetId(config.sheetId);
+    }
+  }, [config]);
+
+  // Cargar siempre la configuración más reciente directamente desde la tabla integraciones_google de MySQL al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/drive/config')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.success && data?.config) {
+            if (data.config.endpointUrl) setEndpointUrl(data.config.endpointUrl);
+            if (data.config.driveFolderId) setDriveFolderId(data.config.driveFolderId);
+            if (data.config.sheetId) setSheetId(data.config.sheetId);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
+
+  const handleGuardarDriveDirecto = async () => {
+    const cfg = {
+      sheetId: sheetId.trim(),
+      endpointUrl: endpointUrl.trim(),
+      driveFolderId: driveFolderId.trim(),
+      status: endpointUrl.trim() ? ('sincronizado' as const) : ('pendiente' as const),
+      lastSync: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      sheetUrl: '',
+      autoSync: false,
+    };
+    onSaveConfig(cfg);
+    try {
+      await fetch('/api/drive/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: cfg }),
+      });
+    } catch (e) {
+      console.warn('Error al persistir integración de Drive en MySQL:', e);
+    }
+    setGuardadoExitosoDrive(true);
+    setTimeout(() => setGuardadoExitosoDrive(false), 2500);
+  };
+
   const [negocio, setNegocio] = useState<DatosNegocio>(() => {
     if (datosNegocio && datosNegocio.nombre) {
       return {
@@ -1150,6 +1201,12 @@ function extractDriveFolderId(input) {
           >
             <HardDrive className="w-3.5 h-3.5 text-sky-400" />
             <span>Google Drive (Recibos)</span>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                endpointUrl?.trim() ? 'bg-sky-400' : 'bg-slate-500'
+              }`}
+              title={endpointUrl?.trim() ? 'Google Drive Configurado en MySQL' : 'Google Drive Sin configurar'}
+            />
           </button>
           <button
             id="tab-mysql-db"
@@ -2251,6 +2308,28 @@ function extractDriveFolderId(input) {
                 <p className="text-slate-400 leading-relaxed text-[11.5px]">
                   Google Drive se utiliza como repositorio de almacenamiento para los archivos físicos originales (PDFs de facturas y tickets escaneados), archivados de forma automática y ordenada en subcarpetas creadas dinámicamente por proveedor.
                 </p>
+
+                {/* Badge de Estado en MySQL (integraciones_google) */}
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                        endpointUrl?.trim() ? 'bg-sky-400' : 'bg-slate-500'
+                      }`}
+                    />
+                    <span className="text-xs text-slate-300 font-medium">
+                      Estado en MySQL (<code className="text-sky-300 bg-slate-900/80 px-1 py-0.5 rounded font-mono text-[11px]">integraciones_google</code>):{' '}
+                      <strong className={endpointUrl?.trim() ? 'text-sky-300' : 'text-slate-400'}>
+                        {endpointUrl?.trim() ? 'Configurado y Activo al Iniciar' : 'Sin configurar'}
+                      </strong>
+                    </span>
+                  </div>
+                  {endpointUrl?.trim() && (
+                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
+                      Autocarga Activa
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -2304,6 +2383,16 @@ function extractDriveFolderId(input) {
               {/* Botones de Comprobación y Sincronización en Tiempo Real */}
               <div className="pt-2 space-y-3">
                 <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleGuardarDriveDirecto}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition-colors shadow-md shadow-sky-950/30 cursor-pointer"
+                    title="Guardar URL del Webhook y Carpeta de Google Drive en la tabla integraciones_google de MySQL"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Guardar Integración Drive en MySQL</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleVerificarConexion}
@@ -2362,6 +2451,13 @@ function extractDriveFolderId(input) {
                     )}
                   </button>
                 </div>
+
+                {guardadoExitosoDrive && (
+                  <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2.5 animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>¡Configuración de Google Drive guardada con éxito en la tabla integraciones_google de MySQL!</span>
+                  </div>
+                )}
 
                 {resultadoVerificacion && (
                   <div

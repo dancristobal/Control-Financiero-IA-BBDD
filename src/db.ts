@@ -421,6 +421,29 @@ async function createTablesOnConnection(conn: any): Promise<void> {
       actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
+  try { await conn.query('ALTER TABLE integraciones_google ADD COLUMN is_sheet_data_active BOOLEAN DEFAULT FALSE'); } catch {}
+
+  try {
+    const [existingGoogle]: [any[], any] = await conn.query('SELECT id, endpoint_url, drive_folder_id FROM integraciones_google WHERE id = 1 LIMIT 1');
+    const defaultEndpoint = process.env.GOOGLE_DRIVE_ENDPOINT_URL || process.env.GOOGLE_SHEETS_ENDPOINT_URL || 'https://script.google.com/macros/s/AKfycby_om7y_NBaPo5MXc-QyzGKgOIjqsg7graHUXWC_4nelkzXSTmu2HuV3iqRvbwW4a4SVQ/exec';
+    const defaultDriveFolder = process.env.GOOGLE_DRIVE_FOLDER_ID || '1Uwm3ROGnrn3T7fF2IvbkblJQAo2VZ0mK';
+    const defaultSheetId = process.env.GOOGLE_SHEETS_ID || '';
+
+    if (!existingGoogle || existingGoogle.length === 0) {
+      await conn.query(`
+        INSERT INTO integraciones_google (id, sheet_id, endpoint_url, drive_folder_id, auto_sync, is_sheet_data_active)
+        VALUES (1, ?, ?, ?, 1, 0)
+      `, [defaultSheetId, defaultEndpoint, defaultDriveFolder]);
+    } else if (!existingGoogle[0].endpoint_url && !existingGoogle[0].drive_folder_id) {
+      await conn.query(`
+        UPDATE integraciones_google
+        SET endpoint_url = ?, drive_folder_id = ?
+        WHERE id = 1
+      `, [defaultEndpoint, defaultDriveFolder]);
+    }
+  } catch (seedErr) {
+    console.warn('Aviso al sembrar integraciones_google en MySQL:', seedErr);
+  }
 }
 
 /**
@@ -1610,8 +1633,8 @@ export async function obtenerConfiguracionGoogleDeMySQL(): Promise<any | null> {
       const r = rows[0];
       return {
         sheetId: r.sheet_id || '',
-        endpointUrl: r.endpoint_url || '',
-        driveFolderId: r.drive_folder_id || '',
+        endpointUrl: r.endpoint_url || process.env.GOOGLE_DRIVE_ENDPOINT_URL || process.env.GOOGLE_SHEETS_ENDPOINT_URL || '',
+        driveFolderId: r.drive_folder_id || process.env.GOOGLE_DRIVE_FOLDER_ID || '',
         autoSync: Boolean(r.auto_sync),
         isSheetDataActive: Boolean(r.is_sheet_data_active),
         ultimaSincronizacion: r.ultima_sincronizacion

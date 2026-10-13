@@ -18,13 +18,15 @@ import {
   RefreshCw,
   RotateCcw
 } from 'lucide-react';
-import { Alerta, Factura, ConfiguracionAlertas, DEFAULT_CONFIGURACION_ALERTAS } from '../types';
+import { Alerta, Factura, ConfiguracionAlertas, DEFAULT_CONFIGURACION_ALERTAS, DatosNegocio } from '../types';
 import {
   obtenerConfiguracionAlertas,
   guardarConfiguracionAlertas,
   evaluarSubidasPrecioDesdeFacturas
 } from '../utils/alertasConfig';
 import { ConfiguracionAlertasModal } from './ConfiguracionAlertasModal';
+import { FacturaDetalleModal } from './FacturaDetalleModal';
+import { VisorFacturaModal } from './VisorFacturaModal';
 
 interface AlertasViewProps {
   alertas: Alerta[];
@@ -34,6 +36,14 @@ interface AlertasViewProps {
   onVerFactura?: (idFactura: string) => void;
   facturas?: Factura[];
   onActualizarAlertas?: (nuevasAlertas: Alerta[]) => void;
+  datosNegocio?: DatosNegocio;
+  onUploadToDrive?: (factura: Factura) => Promise<any> | void;
+  onDeleteFactura?: (facturaOId: Factura | string) => Promise<any> | void;
+  onActualizarEstadoFactura?: (
+    idFactura: string,
+    nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida',
+    fechaPago?: string
+  ) => Promise<any> | void;
 }
 
 export const AlertasView: React.FC<AlertasViewProps> = ({
@@ -44,12 +54,32 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
   onVerFactura,
   facturas = [],
   onActualizarAlertas,
+  datosNegocio,
+  onUploadToDrive,
+  onDeleteFactura,
+  onActualizarEstadoFactura,
 }) => {
   const [filtroNivel, setFiltroNivel] = useState('TODOS');
   const [filtroEstado, setFiltroEstado] = useState<'activa' | 'resuelta' | 'ignorada' | 'TODOS'>('activa');
   const [modalConfigAbierto, setModalConfigAbierto] = useState<boolean>(false);
   const [config, setConfig] = useState<ConfiguracionAlertas>(() => obtenerConfiguracionAlertas());
   const [toastNotificacion, setToastNotificacion] = useState<string | null>(null);
+
+  // Estados para modal de detalle de factura específica y su visor
+  const [facturaSeleccionada, setFacturaSeleccionada] = useState<Factura | null>(null);
+  const [facturaParaVisor, setFacturaParaVisor] = useState<Factura | null>(null);
+
+  const handleVerFactura = (idFactura: string) => {
+    const target = String(idFactura).trim().toLowerCase();
+    const encontrada = facturas.find(
+      (f) => String(f.idFactura).trim().toLowerCase() === target
+    );
+    if (encontrada) {
+      setFacturaSeleccionada(encontrada);
+    } else if (onVerFactura) {
+      onVerFactura(idFactura);
+    }
+  };
 
   // Escuchar actualizaciones de configuración (por si cambia en otra pestaña o componente)
   useEffect(() => {
@@ -427,13 +457,13 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 shrink-0 self-end md:self-center pt-2 md:pt-0">
-                  {onVerFactura && alerta.datosRelacionados?.idFactura && (
+                  {alerta.datosRelacionados?.idFactura && (
                     <button
-                      onClick={() => onVerFactura(alerta.datosRelacionados!.idFactura!)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-slate-100 text-xs font-medium transition-colors cursor-pointer"
-                      title="Ver factura relacionada"
+                      onClick={() => handleVerFactura(alerta.datosRelacionados!.idFactura!)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-slate-100 text-xs font-semibold transition-colors cursor-pointer border border-slate-700/80"
+                      title="Ver pantalla de esta factura en concreto"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-3.5 h-3.5 text-rose-400" />
                       <span>Ver Factura</span>
                     </button>
                   )}
@@ -532,6 +562,42 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
         facturas={facturas}
         alertasActuales={alertas}
         onGuardarYRecalcular={handleGuardarYRecalcular}
+      />
+
+      {/* Modal de Detalle de Factura al pulsar 'Ver Factura' desde Alertas */}
+      <FacturaDetalleModal
+        factura={facturaSeleccionada}
+        onClose={() => setFacturaSeleccionada(null)}
+        onDelete={
+          onDeleteFactura
+            ? (fac) => {
+                setFacturaSeleccionada(null);
+                onDeleteFactura(fac);
+              }
+            : undefined
+        }
+        onAbrirVisor={(fac) => {
+          setFacturaSeleccionada(null);
+          setFacturaParaVisor(fac);
+        }}
+        onUploadToDrive={onUploadToDrive}
+        onActualizarEstado={
+          onActualizarEstadoFactura
+            ? (fac, nuevoEstado) => onActualizarEstadoFactura(fac.idFactura, nuevoEstado)
+            : undefined
+        }
+      />
+
+      {/* Visor Factura Modal cuando se abre desde el detalle de la factura */}
+      <VisorFacturaModal
+        factura={facturaParaVisor}
+        isOpen={Boolean(facturaParaVisor)}
+        onClose={() => setFacturaParaVisor(null)}
+        onVerDetallesCompletos={(fac) => {
+          setFacturaParaVisor(null);
+          setFacturaSeleccionada(fac);
+        }}
+        datosNegocio={datosNegocio}
       />
     </div>
   );
