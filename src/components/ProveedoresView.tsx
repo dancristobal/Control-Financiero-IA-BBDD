@@ -67,13 +67,22 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
       const ultimaFactura = sortedByDate[0]?.fechaEmision || 'Sin facturas';
       const porcentajeSobreTotal = totalGastoGlobal > 0 ? (gastoTotal / totalGastoGlobal) * 100 : 0;
 
-      // Monthly spending for bar chart
-      const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'];
+      // Monthly spending for bar chart (12 meses del año completo)
+      const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
       const gastoPorMes = meses.map((m, idx) => {
         const sum = facturasProv
-          .filter((f) => new Date(f.fechaEmision).getMonth() === idx)
-          .reduce((acc, f) => acc + f.total, 0);
-        return { mes: m, total: Math.round(sum) };
+          .filter((f) => {
+            if (!f.fechaEmision) return false;
+            const partes = f.fechaEmision.split('-');
+            if (partes.length >= 2) {
+              const mesNum = parseInt(partes[1], 10) - 1;
+              return mesNum === idx;
+            }
+            const d = new Date(f.fechaEmision);
+            return !isNaN(d.getTime()) && d.getMonth() === idx;
+          })
+          .reduce((acc, f) => acc + (f.total || 0), 0);
+        return { mes: m, total: Math.round(sum * 100) / 100 };
       });
 
       return {
@@ -501,7 +510,7 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
                         }}
                         formatter={(v: any) => [`${Number(v).toLocaleString('es-ES')} €`, 'Total']}
                       />
-                      <Bar dataKey="total" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={24} />
+                      <Bar dataKey="total" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={18} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
