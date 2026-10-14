@@ -12,6 +12,8 @@ import {
   RefreshCw,
   Plus,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   FileCheck,
   Check,
   X,
@@ -158,6 +160,30 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
       return 10;
     }
   });
+
+  // Sorting State
+  const [sortField, setSortField] = useState<string>('fechaEmision');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection(['fechaEmision', 'baseImponible', 'total', 'impuestos'].includes(field) ? 'desc' : 'asc');
+    }
+  };
+
+  const renderSortIcon = (field: string) => {
+    if (sortField === field) {
+      return sortDirection === 'asc' ? (
+        <ArrowUp className="w-3 h-3 text-rose-400" />
+      ) : (
+        <ArrowDown className="w-3 h-3 text-rose-400" />
+      );
+    }
+    return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
+  };
 
   // Sincronizar paginación y parámetros con cambios en los parámetros del sistema
   useEffect(() => {
@@ -600,9 +626,9 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
   const erroresCount = archivosEnCola.filter((a) => a.estado === 'error').length;
   const esperandoCount = archivosEnCola.filter((a) => a.estado === 'esperando').length;
 
-  // Filtered Invoices for Table
+  // Filtered & Sorted Invoices for Table
   const facturasFiltradas = useMemo(() => {
-    return facturas.filter((f) => {
+    const filtradas = facturas.filter((f) => {
       // Search text
       if (busqueda.trim()) {
         const q = busqueda.toLowerCase();
@@ -656,7 +682,46 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
 
       return true;
     });
-  }, [facturas, busqueda, filtroProveedor, filtroCategoria, filtroEstado, filtroIRPF, minImporte, maxImporte, fechaDesde, fechaHasta]);
+
+    return filtradas.sort((a, b) => {
+      let aVal: any = '';
+      let bVal: any = '';
+
+      if (sortField === 'idFactura') {
+        aVal = a.idFactura || '';
+        bVal = b.idFactura || '';
+      } else if (sortField === 'fechaEmision') {
+        aVal = a.fechaEmision || '';
+        bVal = b.fechaEmision || '';
+      } else if (sortField === 'nombreProveedor') {
+        aVal = a.nombreProveedor || '';
+        bVal = b.nombreProveedor || '';
+      } else if (sortField === 'concepto') {
+        aVal = a.concepto || '';
+        bVal = b.concepto || '';
+      } else if (sortField === 'baseImponible') {
+        aVal = a.baseImponible || 0;
+        bVal = b.baseImponible || 0;
+      } else if (sortField === 'impuestos') {
+        aVal = (a.cuotaIVA || 0) + (a.cuotaRecargoEquivalencia || 0) + (a.cuotaIRPF || 0);
+        bVal = (b.cuotaIVA || 0) + (b.cuotaRecargoEquivalencia || 0) + (b.cuotaIRPF || 0);
+      } else if (sortField === 'total') {
+        aVal = a.total || 0;
+        bVal = b.total || 0;
+      } else if (sortField === 'categoriaGasto') {
+        aVal = a.categoriaGasto || '';
+        bVal = b.categoriaGasto || '';
+      }
+
+      if (typeof aVal === 'string') {
+        const cmp = aVal.localeCompare(bVal);
+        return sortDirection === 'asc' ? cmp : -cmp;
+      } else {
+        const cmp = aVal - bVal;
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+    });
+  }, [facturas, busqueda, filtroProveedor, filtroCategoria, filtroEstado, filtroIRPF, minImporte, maxImporte, fechaDesde, fechaHasta, sortField, sortDirection]);
 
   // Pagination Calculations
   const totalElementos = facturasFiltradas.length;
@@ -1572,14 +1637,78 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
           <table className="w-full text-left text-xs">
             <thead className="bg-[#0a0f18] text-slate-400 border-b border-slate-800 uppercase text-[10px] tracking-wider font-bold">
               <tr>
-                <th className="p-3.5">ID Factura</th>
-                <th className="p-3.5">Fecha</th>
-                <th className="p-3.5">Proveedor</th>
-                <th className="p-3.5">Concepto</th>
-                <th className="p-3.5 text-right">Base Imp.</th>
-                <th className="p-3.5 text-right">Impuestos / RE / IRPF</th>
-                <th className="p-3.5 text-right">Total Líquido</th>
-                <th className="p-3.5">Categoría</th>
+                <th
+                  onClick={() => handleSort('idFactura')}
+                  className="p-3.5 cursor-pointer hover:text-slate-200 select-none transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>ID Factura</span>
+                    {renderSortIcon('idFactura')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('fechaEmision')}
+                  className="p-3.5 cursor-pointer hover:text-slate-200 select-none transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Fecha</span>
+                    {renderSortIcon('fechaEmision')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('nombreProveedor')}
+                  className="p-3.5 cursor-pointer hover:text-slate-200 select-none transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Proveedor</span>
+                    {renderSortIcon('nombreProveedor')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('concepto')}
+                  className="p-3.5 cursor-pointer hover:text-slate-200 select-none transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Concepto</span>
+                    {renderSortIcon('concepto')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('baseImponible')}
+                  className="p-3.5 text-right cursor-pointer hover:text-slate-200 select-none transition-colors"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>Base Imp.</span>
+                    {renderSortIcon('baseImponible')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('impuestos')}
+                  className="p-3.5 text-right cursor-pointer hover:text-slate-200 select-none transition-colors"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>Impuestos / RE / IRPF</span>
+                    {renderSortIcon('impuestos')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('total')}
+                  className="p-3.5 text-right cursor-pointer hover:text-slate-200 select-none transition-colors"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>Total Líquido</span>
+                    {renderSortIcon('total')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('categoriaGasto')}
+                  className="p-3.5 cursor-pointer hover:text-slate-200 select-none transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Categoría</span>
+                    {renderSortIcon('categoriaGasto')}
+                  </div>
+                </th>
                 <th className="p-3.5">Google Drive</th>
                 <th className="p-3.5 text-center">Estado</th>
                 <th className="p-3.5 text-center">Acción</th>
