@@ -689,6 +689,7 @@ export interface GrupoFiscalResumen {
   base: number;
   cuota: number;
   cuotaRE: number;
+  cuotaIRPF: number;
   total: number;
   count: number;
   esTemporal: boolean;
@@ -816,6 +817,7 @@ export function procesarDesgloseFiscalCompleto(
         base: 0,
         cuota: 0,
         cuotaRE: 0,
+        cuotaIRPF: 0,
         total: 0,
         count: 0,
         esTemporal: info.esTemporal,
@@ -826,10 +828,13 @@ export function procesarDesgloseFiscalCompleto(
       });
     }
 
+    const cuotaIRPFFactura = (f.aplicaRetencionIRPF || Number(f.cuotaIRPF) !== 0) ? (Number(f.cuotaIRPF) || 0) : 0;
+
     const g = gruposMap.get(clave)!;
     g.base += base;
     g.cuota += cuota;
     g.cuotaRE += cuotaREFactura;
+    g.cuotaIRPF += cuotaIRPFFactura;
     g.total += tot;
     g.count += 1;
     g.facturasIds.push(f.idFactura);

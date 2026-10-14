@@ -61,6 +61,10 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
         f.idProveedor === prov.idProveedor ||
         f.nombreProveedor?.trim().toLowerCase() === prov.nombreProveedor?.trim().toLowerCase()
       );
+      const baseImponibleTotal = facturasProv.reduce((acc, f) => acc + (f.baseImponible || 0), 0);
+      const ivaTotal = facturasProv.reduce((acc, f) => acc + (f.cuotaIVA || 0), 0);
+      const recargoTotal = facturasProv.reduce((acc, f) => acc + (f.cuotaRecargoEquivalencia || 0), 0);
+      const irpfTotal = facturasProv.reduce((acc, f) => acc + (f.cuotaIRPF || 0), 0);
       const gastoTotal = facturasProv.reduce((acc, f) => acc + f.total, 0);
       const gastoMedio = facturasProv.length > 0 ? gastoTotal / facturasProv.length : 0;
       const sortedByDate = [...facturasProv].sort((a, b) => b.fechaEmision.localeCompare(a.fechaEmision));
@@ -89,6 +93,10 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
         ...prov,
         facturasCount: facturasProv.length,
         facturas: facturasProv,
+        baseImponibleTotal,
+        ivaTotal,
+        recargoTotal,
+        irpfTotal,
         gastoTotal,
         gastoMedio,
         ultimaFactura,
@@ -97,6 +105,20 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
       };
     });
   }, [proveedores, facturas]);
+
+  // Global fiscal summary across all suppliers/facturas
+  const resumenFiscalGlobal = useMemo(() => {
+    return proveedoresConMetricas.reduce(
+      (acc, p) => ({
+        base: acc.base + p.baseImponibleTotal,
+        iva: acc.iva + p.ivaTotal,
+        recargo: acc.recargo + p.recargoTotal,
+        irpf: acc.irpf + p.irpfTotal,
+        total: acc.total + p.gastoTotal,
+      }),
+      { base: 0, iva: 0, recargo: 0, irpf: 0, total: 0 }
+    );
+  }, [proveedoresConMetricas]);
 
   // Filtered suppliers
   const filtrados = useMemo(() => {
@@ -146,6 +168,40 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
           <span className="px-3 py-1.5 rounded-xl bg-[#0f172a] border border-slate-800">
             Total Proveedores: <strong className="text-slate-200">{proveedores.length}</strong>
           </span>
+        </div>
+      </div>
+
+      {/* Global Fiscal Summary Banner */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 rounded-2xl bg-[#101726] border border-slate-800 shadow-xl">
+        <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800/80">
+          <div className="text-[10px] uppercase font-semibold text-slate-400">Base Imponible Total</div>
+          <div className="text-sm font-bold text-slate-100 font-mono mt-1">
+            {resumenFiscalGlobal.base.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </div>
+        </div>
+        <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800/80">
+          <div className="text-[10px] uppercase font-semibold text-blue-400">IVA / IGIC Soportado</div>
+          <div className="text-sm font-bold text-blue-300 font-mono mt-1">
+            {resumenFiscalGlobal.iva.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </div>
+        </div>
+        <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800/80">
+          <div className="text-[10px] uppercase font-semibold text-amber-400">Recargo Equivalencia</div>
+          <div className="text-sm font-bold text-amber-300 font-mono mt-1">
+            {resumenFiscalGlobal.recargo.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </div>
+        </div>
+        <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800/80">
+          <div className="text-[10px] uppercase font-semibold text-purple-400">Retención IRPF</div>
+          <div className="text-sm font-bold text-purple-300 font-mono mt-1">
+            {resumenFiscalGlobal.irpf.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </div>
+        </div>
+        <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800/80 col-span-2 sm:col-span-1">
+          <div className="text-[10px] uppercase font-semibold text-rose-400">Gasto Total Líquido</div>
+          <div className="text-sm font-bold text-rose-300 font-mono mt-1">
+            {resumenFiscalGlobal.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </div>
         </div>
       </div>
 
@@ -221,19 +277,54 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
                 </p>
               </div>
 
-              {/* Financial Metrics */}
+              {/* Financial & Tax Metrics */}
               <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
                 <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
-                  <div className="text-[10px] text-slate-300">Gasto Total Acumulado</div>
-                  <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                    {prov.gastoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                  <div className="text-[10px] text-slate-400">Base Imponible</div>
+                  <div className="text-xs font-bold text-slate-200 font-mono mt-0.5">
+                    {prov.baseImponibleTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                   </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
-                  <div className="text-[10px] text-slate-300">Importe Mensual Ref.</div>
-                  <div className="text-sm font-bold text-slate-200 font-mono mt-0.5">
-                    {prov.importeMensual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                  <div className="text-[10px] text-blue-400">IVA Soportado</div>
+                  <div className="text-xs font-bold text-blue-300 font-mono mt-0.5">
+                    {prov.ivaTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                  </div>
+                </div>
+
+                {prov.recargoTotal > 0 && (
+                  <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
+                    <div className="text-[10px] text-amber-400">Recargo Equivalencia</div>
+                    <div className="text-xs font-bold text-amber-300 font-mono mt-0.5">
+                      {prov.recargoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    </div>
+                  </div>
+                )}
+
+                {prov.irpfTotal > 0 && (
+                  <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
+                    <div className="text-[10px] text-purple-400">Retención IRPF</div>
+                    <div className="text-xs font-bold text-purple-300 font-mono mt-0.5">
+                      {prov.irpfTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800 col-span-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] text-rose-400 font-semibold">Gasto Total Líquido</div>
+                      <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                        {prov.gastoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] text-slate-400">Mensual Ref.</div>
+                      <div className="text-xs font-bold text-slate-300 font-mono mt-0.5">
+                        {prov.importeMensual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -443,10 +534,54 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
                   </div>
                 </div>
               )}
-              {/* Aggregated Metrics Cards */}
+              {/* Aggregated Fiscal & Operational Metrics Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800">
-                  <span className="text-slate-400 text-[11px]">Gasto Total</span>
+                  <span className="text-slate-400 text-[11px]">Base Imponible Total</span>
+                  <div className="text-sm font-bold text-slate-100 font-mono mt-1">
+                    {selectedSupplierDetails.baseImponibleTotal.toLocaleString('es-ES', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    €
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800">
+                  <span className="text-blue-400 text-[11px]">IVA / IGIC Soportado</span>
+                  <div className="text-sm font-bold text-blue-300 font-mono mt-1">
+                    {selectedSupplierDetails.ivaTotal.toLocaleString('es-ES', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    €
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800">
+                  <span className="text-amber-400 text-[11px]">Recargo Equivalencia</span>
+                  <div className="text-sm font-bold text-amber-300 font-mono mt-1">
+                    {selectedSupplierDetails.recargoTotal.toLocaleString('es-ES', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    €
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800">
+                  <span className="text-purple-400 text-[11px]">Retención IRPF</span>
+                  <div className="text-sm font-bold text-purple-300 font-mono mt-1">
+                    {selectedSupplierDetails.irpfTotal.toLocaleString('es-ES', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    €
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#0a0f18] border border-slate-800">
+                  <span className="text-rose-400 text-[11px]">Gasto Total Líquido</span>
                   <div className="text-base font-bold text-slate-100 font-mono mt-1">
                     {selectedSupplierDetails.gastoTotal.toLocaleString('es-ES', {
                       minimumFractionDigits: 2,
@@ -534,7 +669,8 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
                         <th className="p-3">ID Factura</th>
                         <th className="p-3">Fecha</th>
                         <th className="p-3">Concepto</th>
-                        <th className="p-3 text-right">Total</th>
+                        <th className="p-3 text-right">Impuestos (IVA / RE / IRPF)</th>
+                        <th className="p-3 text-right">Total Líquido</th>
                         <th className="p-3 text-center">Estado</th>
                         <th className="p-3 text-right">Acción</th>
                       </tr>
@@ -551,9 +687,22 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
                             {f.idFactura}
                           </td>
                           <td className="p-3 text-slate-400 font-mono">{f.fechaEmision}</td>
-                          <td className="p-3 text-slate-300 max-w-[240px] truncate">{f.concepto}</td>
-                          <td className="p-3 text-right font-mono font-bold text-rose-400">
-                            {f.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                          <td className="p-3 text-slate-300 max-w-[200px] truncate">{f.concepto}</td>
+                          <td className="p-3 text-right font-mono text-[11px] whitespace-nowrap">
+                            <span className="text-sky-400">IVA: +{(f.cuotaIVA ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                            {f.aplicaRecargoEquivalencia && (f.cuotaRecargoEquivalencia ?? 0) !== 0 && (
+                              <div className="text-[10px] text-purple-400">
+                                RE: +{(f.cuotaRecargoEquivalencia || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                              </div>
+                            )}
+                            {f.aplicaRetencionIRPF && (f.cuotaIRPF ?? 0) !== 0 && (
+                              <div className="text-[10px] text-emerald-400">
+                                IRPF: -{(f.cuotaIRPF || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3 text-right font-mono font-bold text-rose-400 whitespace-nowrap">
+                            {f.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                           </td>
                           <td className="p-3 text-center">
                             <span

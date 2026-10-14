@@ -1,0 +1,11 @@
+Aquí tienes varias sugerencias de alto valor profesional y funcional que podríamos incorporar para elevar aún más las capacidades de la aplicación de gestión y fiscalidad:
+Exportación de Modelos AEAT en Formato Oficial (TXT / BOE)
+Generación y descarga directa de ficheros con el formato estructurado requerido por la Agencia Tributaria para los Modelos 303 (IVA), 111 y 115 (Retenciones), facilitando el copiado o importación en la Sede Electrónica.
+Previsión de Tesorería y Calendario de Pagos Fiscales (Cash Flow a 90 días)
+Un nuevo panel financiero que cruza las facturas de clientes pendientes de cobro y proveedores pendientes de pago, incorporando automáticamente las fechas clave de liquidación de impuestos trimestrales (20 de abril, julio, octubre y enero) para anticipar tensiones de liquidez.
+Validador y Exportador de Factura Electrónica (Formato Facturae / Ley Crea y Crece)
+Capacidad para generar y validar facturas en XML estructurado bajo el estándar Facturae, preparándote para la normativa obligatoria de facturación electrónica entre empresas y autónomos (B2B).
+Conversión Rápida de Albaranes y Presupuestos a Factura
+Un flujo de trabajo comercial completo donde los presupuestos aceptados o albaranes de entrega emitidos se conviertan de forma automática en facturas definitivas con un solo clic, manteniendo la trazabilidad.
+Auditoría Inteligente de Deductibilidad de Gastos (Criterios AEAT)
+Un asistente en los gastos que evalúa el nivel de riesgo fiscal ante inspección (según el porcentaje de afectación a la actividad, NIF del emisor, existencia de factura completa y deducibilidad de IVA según el sector).

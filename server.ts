@@ -1,7 +1,10 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
+import { INITIAL_FACTURAS, INITIAL_PROVEEDORES } from './src/data/mockData';
+import { DEFAULT_DATOS_NEGOCIO } from './src/types';
 import {
   getDbPool,
   testDbConnection,
@@ -112,45 +115,10 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
-// In-memory data store for server-side persistence of invoices and suppliers
-// This mirrors the Google Sheet tabs "Facturas" and "Proveedores"
-let serverFacturas: any[] = [];
-let serverProveedores: any[] = [];
-
 // ==========================================
-// CONFIGURACIÓN DE GOOGLE SHEETS Y GEMINI
+// PERSISTENCIA DURADERA EN DISCO DEL SERVIDOR (NO VOLÁTIL)
 // ==========================================
-// Para conectar con tu Google Sheet real:
-// 1. Configura GOOGLE_SHEETS_ID en tu archivo .env o en el panel de Configuración de la app.
-// 2. Puedes usar un endpoint de Google Apps Script Web App (GOOGLE_SHEETS_ENDPOINT_URL)
-//    para insertar filas automáticamente en la pestaña "Facturas" y leer "Proveedores".
-// 3. El script de Google Apps Script recomendado está disponible en el panel de Configuración.
-// 4. La clave de Gemini se toma de GEMINI_API_KEY en el entorno del servidor.
-const SHEETS_CONFIG = {
-  sheetId: process.env.GOOGLE_SHEETS_ID || '',
-  endpointUrl: process.env.GOOGLE_SHEETS_ENDPOINT_URL || '',
-};
-
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    geminiConfigured: !!getGeminiApiKey(),
-    sheetsConfigured: !!SHEETS_CONFIG.sheetId || !!SHEETS_CONFIG.endpointUrl,
-    timestamp: new Date().toISOString()
-  });
-});
-
-// ==========================================
-// CATÁLOGO DE CATEGORÍAS DE GASTO
-// ==========================================
-let storedCategoriasGasto: Array<{
-  id: string;
-  nombre: string;
-  descripcion?: string;
-  color: string;
-  esPredeterminada?: boolean;
-}> = [
+const DEFAULT_CATEGORIAS_GASTO_SERVER = [
   {
     id: 'materias-primas',
     nombre: 'Materias Primas',
@@ -195,35 +163,111 @@ let storedCategoriasGasto: Array<{
   },
 ];
 
-// Endpoints de Datos de Negocio (MySQL + memoria)
-let serverDatosNegocio: any = {
-  nombre: 'Finance AI — Obrador & Café',
-  nif: 'B-87654321',
-  direccion: 'Calle Mayor 45, Planta Baja',
-  actividad: 'Hostelería, Obrador y Panadería Artesanal',
-  sector: 'Alimentación y Bebidas',
-  contextoOperativo: 'Producción propia diaria de panadería y pastelería, venta minorista al público y distribución B2B a restaurantes locales.',
-  email: 'administracion@financeai.es',
-  telefono: '+34 912 345 678',
+function getServerStorePath(): string {
+  const dir = path.join(process.cwd(), 'tmp');
+  if (!fs.existsSync(dir)) {
+    try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+  }
+  return path.join(dir, 'enterprise_server_store.json');
+}
+
+interface ServerStoreData {
+  facturas: any[];
+  proveedores: any[];
+  datosNegocio: any;
+  categorias: any[];
+}
+
+function loadServerStore(): ServerStoreData {
+  try {
+    const file = getServerStorePath();
+    if (fs.existsSync(file)) {
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      if (data && Array.isArray(data.facturas) && data.facturas.length > 0) {
+        return {
+          facturas: data.facturas,
+          proveedores: Array.isArray(data.proveedores) && data.proveedores.length > 0 ? data.proveedores : INITIAL_PROVEEDORES,
+          datosNegocio: data.datosNegocio || DEFAULT_DATOS_NEGOCIO,
+          categorias: Array.isArray(data.categorias) && data.categorias.length > 0 ? data.categorias : DEFAULT_CATEGORIAS_GASTO_SERVER,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Aviso al cargar server store persistente de disco:', e);
+  }
+  return {
+    facturas: [...INITIAL_FACTURAS],
+    proveedores: [...INITIAL_PROVEEDORES],
+    datosNegocio: { ...DEFAULT_DATOS_NEGOCIO },
+    categorias: [...DEFAULT_CATEGORIAS_GASTO_SERVER],
+  };
+}
+
+const initialLoadedStore = loadServerStore();
+let serverFacturas: any[] = initialLoadedStore.facturas;
+let serverProveedores: any[] = initialLoadedStore.proveedores;
+let serverDatosNegocio: any = initialLoadedStore.datosNegocio;
+let storedCategoriasGasto: any[] = initialLoadedStore.categorias;
+
+function persistServerStore(): void {
+  try {
+    const file = getServerStorePath();
+    const data: ServerStoreData = {
+      facturas: serverFacturas,
+      proveedores: serverProveedores,
+      datosNegocio: serverDatosNegocio,
+      categorias: storedCategoriasGasto,
+    };
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Aviso al persistir server store en disco:', e);
+  }
+}
+
+// ==========================================
+// CONFIGURACIÓN DE GOOGLE SHEETS Y GEMINI
+// ==========================================
+// Para conectar con tu Google Sheet real:
+// 1. Configura GOOGLE_SHEETS_ID en tu archivo .env o en el panel de Configuración de la app.
+// 2. Puedes usar un endpoint de Google Apps Script Web App (GOOGLE_SHEETS_ENDPOINT_URL)
+//    para insertar filas automáticamente en la pestaña "Facturas" y leer "Proveedores".
+// 3. El script de Google Apps Script recomendado está disponible en el panel de Configuración.
+// 4. La clave de Gemini se toma de GEMINI_API_KEY en el entorno del servidor.
+const SHEETS_CONFIG = {
+  sheetId: process.env.GOOGLE_SHEETS_ID || '',
+  endpointUrl: process.env.GOOGLE_SHEETS_ENDPOINT_URL || '',
 };
 
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    geminiConfigured: !!getGeminiApiKey(),
+    sheetsConfigured: !!SHEETS_CONFIG.sheetId || !!SHEETS_CONFIG.endpointUrl,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Endpoints de Datos de Negocio (MySQL + persistencia en disco)
 app.get('/api/datos-negocio', async (req, res) => {
   try {
     const dbDatos = await obtenerDatosNegocioDeMySQL();
     if (dbDatos && dbDatos.nombre) {
       serverDatosNegocio = { ...serverDatosNegocio, ...dbDatos };
+      persistServerStore();
       return res.json({ success: true, datos: dbDatos, fuente: 'mysql' });
     }
   } catch (err: any) {
     console.warn('Aviso al leer datos_negocio de MySQL:', err?.message);
   }
-  return res.json({ success: true, datos: serverDatosNegocio, fuente: 'memoria' });
+  return res.json({ success: true, datos: serverDatosNegocio, fuente: 'persistent_cache' });
 });
 
 app.post('/api/datos-negocio', async (req, res) => {
   const { datos } = req.body || {};
   if (datos && typeof datos === 'object') {
     serverDatosNegocio = { ...serverDatosNegocio, ...datos };
+    persistServerStore();
     let guardadoEnMySQL = false;
     try {
       const resDb = await guardarDatosNegocioEnMySQL(datos);
@@ -245,18 +289,20 @@ app.get('/api/categorias-gasto', async (req, res) => {
     const dbCats = await obtenerCategoriasDeMySQL();
     if (dbCats && dbCats.length > 0) {
       storedCategoriasGasto = dbCats;
+      persistServerStore();
       return res.json({ categorias: dbCats, fuente: 'mysql' });
     }
   } catch (err: any) {
     console.warn('Aviso al leer categorias_gasto de MySQL:', err?.message);
   }
-  res.json({ categorias: storedCategoriasGasto, fuente: 'memoria' });
+  return res.json({ categorias: storedCategoriasGasto, fuente: 'persistent_cache' });
 });
 
 app.post('/api/categorias-gasto', async (req, res) => {
   const { categorias } = req.body;
   if (Array.isArray(categorias) && categorias.length > 0) {
     storedCategoriasGasto = categorias;
+    persistServerStore();
     let guardadoEnMySQL = false;
     let mysqlReplicadas = 0;
     try {
@@ -1132,13 +1178,14 @@ async function procesarGuardadoFacturaDBFirst(req: any, res: any, facturaInput: 
       console.warn('⚠️ [DB-First] Aviso al guardar en MySQL:', mysqlError);
     }
 
-    // Mantener sincronizada la memoria del servidor
+    // Mantener sincronizada la persistencia en disco del servidor
     const existingIndex = serverFacturas.findIndex((f) => f.idFactura === idFactura);
     if (existingIndex !== -1) {
       serverFacturas[existingIndex] = nuevaFila;
     } else {
       serverFacturas.push(nuevaFila);
     }
+    persistServerStore();
 
     // 2. Almacenamiento opcional de recibo / justificante en Google Drive
     let driveGuardado = false;
@@ -1973,12 +2020,13 @@ app.get('/api/facturas', async (req, res) => {
     const facturas = await obtenerFacturasDeMySQL();
     if (facturas && facturas.length > 0) {
       serverFacturas = [...facturas];
+      persistServerStore();
       return res.json({ success: true, facturas, count: facturas.length, fuente: 'mysql' });
     }
   } catch (err: any) {
     console.warn('Aviso al consultar facturas en MySQL:', err?.message);
   }
-  return res.json({ success: true, facturas: serverFacturas, count: serverFacturas.length, fuente: 'memoria' });
+  return res.json({ success: true, facturas: serverFacturas, count: serverFacturas.length, fuente: 'persistent_cache' });
 });
 
 app.post('/api/facturas', async (req, res) => {
@@ -1992,6 +2040,7 @@ app.post('/api/facturas', async (req, res) => {
         if (idx !== -1) serverFacturas[idx] = f;
         else serverFacturas.push(f);
       }
+      persistServerStore();
       return res.json({
         success: result.mysqlDisponible,
         replicadas: result.replicadas,
@@ -2025,6 +2074,7 @@ app.patch('/api/facturas/:id/estado', async (req, res) => {
     if (idx !== -1) {
       serverFacturas[idx].estado = estado;
       if (fechaPago) serverFacturas[idx].fechaPago = fechaPago;
+      persistServerStore();
     }
     return res.json({ success: result.ok, error: result.error });
   } catch (err: any) {
@@ -2257,6 +2307,7 @@ async function eliminarFacturaDBFirstHandler(req: any, res: any) {
 
   const normalizedId = String(idFactura).trim();
   serverFacturas = serverFacturas.filter((f) => String(f.idFactura).trim().toLowerCase() !== normalizedId.toLowerCase());
+  persistServerStore();
 
   // 1. Eliminar transaccionalmente de MySQL (Single Source of Truth)
   let mysqlDeleted = false;
@@ -2435,16 +2486,18 @@ app.get('/api/proveedores', async (req, res) => {
       });
 
       serverProveedores = [...provsConsolidados];
+      persistServerStore();
       return res.json({
         success: true,
         proveedores: provsConsolidados,
         count: provsConsolidados.length,
-        fuente: isMySQLAvailable() ? 'mysql_consolidado' : 'memoria_consolidada',
+        fuente: isMySQLAvailable() ? 'mysql_consolidado' : 'persistent_cache_consolidada',
       });
     }
 
     if (rawProvs && rawProvs.length > 0) {
       serverProveedores = [...rawProvs];
+      persistServerStore();
       return res.json({
         success: true,
         proveedores: rawProvs,
@@ -2456,7 +2509,7 @@ app.get('/api/proveedores', async (req, res) => {
     console.warn('Aviso al consultar proveedores:', err?.message);
   }
 
-  res.json({ success: true, proveedores: serverProveedores, count: serverProveedores.length, fuente: 'memoria' });
+  return res.json({ success: true, proveedores: serverProveedores, count: serverProveedores.length, fuente: 'persistent_cache' });
 });
 
 // Endpoint: Guardar o actualizar proveedores en memoria y MySQL
@@ -2464,6 +2517,7 @@ app.post('/api/proveedores', async (req, res) => {
   const { proveedores } = req.body;
   if (Array.isArray(proveedores) && proveedores.length > 0) {
     serverProveedores = proveedores;
+    persistServerStore();
     let guardadoEnMySQL = false;
     let replicadas = 0;
     try {

@@ -85,18 +85,7 @@ export default function App() {
     lastSync: 'Auto',
   });
 
-  const [datosNegocio, setDatosNegocio] = useState<DatosNegocio>(() => {
-    try {
-      const saved = localStorage.getItem('fa_datos_negocio_v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.nombre) {
-          return { ...DEFAULT_DATOS_NEGOCIO, ...parsed };
-        }
-      }
-    } catch {}
-    return DEFAULT_DATOS_NEGOCIO;
-  });
+  const [datosNegocio, setDatosNegocio] = useState<DatosNegocio>(DEFAULT_DATOS_NEGOCIO);
 
   // Modals Visibility
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -221,13 +210,7 @@ export default function App() {
         const negocioRes = await fetch('/api/datos-negocio');
         const negocioData = await negocioRes.json();
         if (montado && negocioData.success && negocioData.datos && negocioData.datos.nombre) {
-          setDatosNegocio((prev) => {
-            const merged = { ...DEFAULT_DATOS_NEGOCIO, ...prev, ...negocioData.datos };
-            try {
-              localStorage.setItem('fa_datos_negocio_v1', JSON.stringify(merged));
-            } catch {}
-            return merged;
-          });
+          setDatosNegocio((prev) => ({ ...DEFAULT_DATOS_NEGOCIO, ...prev, ...negocioData.datos }));
         }
 
         // 4. Sincronizar catálogo de categorías de gasto desde MySQL
@@ -589,7 +572,7 @@ export default function App() {
   ) => {
     let alertaActualizada: Alerta | undefined;
 
-    // 1. Actualización optimista en React state y localStorage
+    // 1. Actualización optimista en React state
     setAlertas((prev) => {
       const updated = prev.map((a) => {
         if (a.id === id) {
@@ -598,9 +581,6 @@ export default function App() {
         }
         return a;
       });
-      try {
-        localStorage.setItem('fa_alertas_v1', JSON.stringify(updated));
-      } catch {}
       return updated;
     });
 
@@ -737,9 +717,6 @@ export default function App() {
   // Handler: Guardar datos de negocio directamente en la base de datos MySQL (datos_negocio)
   const handleSaveDatosNegocio = async (nuevosDatos: DatosNegocio) => {
     setDatosNegocio(nuevosDatos);
-    try {
-      localStorage.setItem('fa_datos_negocio_v1', JSON.stringify(nuevosDatos));
-    } catch {}
     try {
       await fetch('/api/datos-negocio', {
         method: 'POST',

@@ -1,6 +1,15 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 import { generarScriptSqlCompleto as generarScriptSqlCompletoUtil } from './utils/sqlGenerator';
+import {
+  INITIAL_FACTURAS,
+  INITIAL_PROVEEDORES,
+  INITIAL_ALERTAS,
+} from './data/mockData';
+import { DEFAULT_DATOS_NEGOCIO, DEFAULT_PARAMETROS_SISTEMA } from './types';
+import { DEFAULT_CATEGORIAS_GASTO } from './utils/categoriasGasto';
 
 dotenv.config();
 
@@ -12,12 +21,42 @@ export interface DbConfig {
   database: string;
 }
 
+function getDbConfigFilePath(): string {
+  const dir = path.join(process.cwd(), 'tmp');
+  if (!fs.existsSync(dir)) {
+    try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+  }
+  return path.join(dir, 'mysql_config.json');
+}
+
+function loadPersistedDbConfig(): Partial<DbConfig> {
+  try {
+    const file = getDbConfigFilePath();
+    if (fs.existsSync(file)) {
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      return data || {};
+    }
+  } catch {}
+  return {};
+}
+
+function persistDbConfig(cfg: DbConfig): void {
+  try {
+    const file = getDbConfigFilePath();
+    fs.writeFileSync(file, JSON.stringify(cfg, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('No se pudo guardar la configuración de DB en disco:', e);
+  }
+}
+
+const persistedDbConfig = loadPersistedDbConfig();
+
 let activeConfig: DbConfig = {
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'finance_ai_db',
+  host: persistedDbConfig.host || process.env.DB_HOST || '127.0.0.1',
+  port: Number(persistedDbConfig.port || process.env.DB_PORT) || 3306,
+  user: persistedDbConfig.user || process.env.DB_USER || 'root',
+  password: persistedDbConfig.password !== undefined ? persistedDbConfig.password : (process.env.DB_PASSWORD || ''),
+  database: persistedDbConfig.database || process.env.DB_NAME || 'finance_ai_db',
 };
 
 let dbPool: mysql.Pool | null = null;
@@ -34,6 +73,7 @@ export function updateDbConfig(newConfig: Partial<DbConfig>): void {
     ...newConfig,
     port: Number(newConfig.port || activeConfig.port || 3306),
   };
+  persistDbConfig(activeConfig);
   // Reiniciar pool para tomar nuevos parámetros
   if (dbPool) {
     try {
@@ -444,6 +484,195 @@ async function createTablesOnConnection(conn: any): Promise<void> {
   } catch (seedErr) {
     console.warn('Aviso al sembrar integraciones_google en MySQL:', seedErr);
   }
+
+  // 13. Auto-siembra de arquitectura relacional completa si la base de datos empresarial está vacía
+  await seedInitialDataIfEmpty(conn);
+}
+
+async function seedInitialDataIfEmpty(conn: any): Promise<void> {
+  try {
+    const [rows]: [any[], any] = await conn.query('SELECT COUNT(*) as count FROM facturas');
+    const count = rows && rows[0] ? Number(rows[0].count) : 0;
+    if (count === 0) {
+      // 1. Datos de negocio
+      const [negRows]: [any[], any] = await conn.query('SELECT COUNT(*) as cnt FROM datos_negocio');
+      if (!negRows || Number(negRows[0].cnt) === 0) {
+        await conn.query(`
+          INSERT INTO datos_negocio (id, nombre, nif, direccion, actividad, sector, contexto_operativo, email, telefono)
+          VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          DEFAULT_DATOS_NEGOCIO.nombre,
+          DEFAULT_DATOS_NEGOCIO.nif,
+          DEFAULT_DATOS_NEGOCIO.direccion,
+          DEFAULT_DATOS_NEGOCIO.actividad,
+          DEFAULT_DATOS_NEGOCIO.sector,
+          DEFAULT_DATOS_NEGOCIO.contextoOperativo,
+          DEFAULT_DATOS_NEGOCIO.email,
+          DEFAULT_DATOS_NEGOCIO.telefono
+        ]);
+      }
+
+      // 2. Categorías de gasto
+      for (const cat of DEFAULT_CATEGORIAS_GASTO) {
+        await conn.query(`
+          INSERT IGNORE INTO categorias_gasto (id, nombre, descripcion, color, es_predeterminada)
+          VALUES (?, ?, ?, ?, ?)
+        `, [cat.id, cat.nombre, cat.descripcion || '', cat.color || '#0ea5e9', cat.esPredeterminada ? 1 : 0]);
+      }
+
+      // 3. Facturas completas con proveedores, líneas e histórico de precios
+      for (const f of INITIAL_FACTURAS) {
+        const idFactura = String(f.idFactura).trim();
+        const idProveedor = String(f.idProveedor || 'PROV-GEN').trim();
+        const nombreProveedor = String(f.nombreProveedor || 'Proveedor General').trim();
+        const fechaEmisionSql = sanitizeSqlDate(f.fechaEmision) || new Date().toISOString().split('T')[0];
+        const fechaVencimientoSql = sanitizeSqlDate(f.fechaVencimiento) || fechaEmisionSql;
+        const total = Number(f.total || 0);
+        const baseImponible = Number(f.baseImponible || f.importe || 0);
+        const importe = Number(f.importe || baseImponible || 0);
+        const cuotaIVA = Number(f.cuotaIVA || 0);
+        const cuotaRecargo = Number(f.cuotaRecargoEquivalencia || 0);
+        const cuotaIRPF = Number(f.cuotaIRPF || 0);
+        const porcentajeIRPF = Number(f.porcentajeIRPF || 0);
+
+        await conn.query(`
+          INSERT INTO proveedores (id_proveedor, nombre_proveedor, importe_mensual)
+          VALUES (?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            nombre_proveedor = VALUES(nombre_proveedor),
+            importe_mensual = importe_mensual + VALUES(importe_mensual)
+        `, [idProveedor, nombreProveedor, total]);
+
+        await conn.query(`
+          INSERT IGNORE INTO facturas (
+            id_factura, fecha_emision, id_proveedor, nombre_proveedor, concepto,
+            importe, fecha_vencimiento, estado, fecha_pago, base_imponible,
+            tipos_iva, cuota_iva, regimen_fiscal, aplica_recargo_equivalencia,
+            tipo_recargo_equivalencia, cuota_recargo_equivalencia, aplica_retencion_irpf,
+            tipo_retencion_irpf, porcentaje_irpf, cuota_irpf, concepto_retencion_irpf,
+            total, categoria_gasto, categoria_gasto_justificacion, notas, archivo_nombre,
+            archivo_ruta, sincronizado_sheets
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `, [
+          idFactura,
+          fechaEmisionSql,
+          idProveedor,
+          nombreProveedor,
+          f.concepto || 'Factura registrada',
+          importe,
+          fechaVencimientoSql,
+          f.estado || 'Pendiente',
+          f.fechaPago || 'Pendiente de confirmar',
+          baseImponible,
+          f.tiposIVA || '21%',
+          cuotaIVA,
+          f.regimenFiscal || 'Régimen General Peninsular',
+          Boolean(f.aplicaRecargoEquivalencia) ? 1 : 0,
+          f.tipoRecargoEquivalencia || '',
+          cuotaRecargo,
+          Boolean(f.aplicaRetencionIRPF) ? 1 : 0,
+          f.tipoRetencionIRPF || '',
+          porcentajeIRPF,
+          cuotaIRPF,
+          f.conceptoRetencionIRPF || '',
+          total,
+          f.categoriaGasto || 'Materias Primas',
+          f.categoriaGastoJustificacion || '',
+          f.notas || '',
+          f.archivoNombre || `${idFactura}.pdf`,
+          f.driveFileUrl || f.archivoRuta || (f as any).archivo_ruta || null
+        ]);
+
+        const lineas = Array.isArray(f.lineas) && f.lineas.length > 0
+          ? f.lineas
+          : [{
+              nombreProducto: f.concepto || 'Producto / Servicio',
+              cantidad: 1,
+              unidad: 'ud',
+              precioUnitario: importe,
+              subtotal: importe,
+            }];
+
+        const lineasData = lineas.map((l: any) => [
+          idFactura,
+          String(l.nombreProducto || 'Artículo').trim(),
+          Number(l.cantidad || 1),
+          String(l.unidad || 'ud').trim(),
+          Number(l.precioUnitario || 0),
+          Number(l.subtotal || (Number(l.cantidad || 1) * Number(l.precioUnitario || 0))),
+        ]);
+
+        await conn.query(
+          `INSERT INTO facturas_lineas (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
+          [lineasData]
+        );
+        await conn.query(
+          `INSERT INTO lineas_factura (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
+          [lineasData]
+        );
+
+        for (const l of lineas) {
+          const precio = Number(l.precioUnitario || 0);
+          const nomProd = String(l.nombreProducto || f.concepto || 'Artículo').trim();
+          if (precio > 0 && nomProd) {
+            await conn.query(`
+              INSERT INTO historico_precios (nombre_producto, id_proveedor, nombre_proveedor, id_factura, fecha, precio_unitario, unidad)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [
+              nomProd,
+              idProveedor,
+              nombreProveedor,
+              idFactura,
+              fechaEmisionSql,
+              precio,
+              String(l.unidad || 'ud').trim()
+            ]);
+          }
+        }
+      }
+
+      // 4. Sembrar alertas iniciales
+      for (const a of INITIAL_ALERTAS) {
+        await conn.query(`
+          INSERT IGNORE INTO alertas (id, tipo, nivel, titulo, descripcion, fecha, estado, datos_relacionados)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          a.id,
+          a.tipo,
+          a.nivel,
+          a.titulo,
+          a.descripcion,
+          a.fecha ? new Date(a.fecha) : new Date(),
+          a.estado || 'activa',
+          a.datosRelacionados ? JSON.stringify(a.datosRelacionados) : null
+        ]);
+      }
+
+      // 5. Sembrar configuración de parámetros
+      const [paramRows]: [any[], any] = await conn.query('SELECT COUNT(*) as cnt FROM configuracion_parametros');
+      if (!paramRows || Number(paramRows[0].cnt) === 0) {
+        await conn.query(`
+          INSERT INTO configuracion_parametros (
+            id, umbral_subida_moderada_pct, umbral_subida_critica_pct,
+            umbral_concentracion_proveedor_pct, notificar_concentracion_proveedor,
+            dias_anticipacion_vencimiento, notificar_facturas_vencidas,
+            regimen_fiscal_predeterminado, tipo_retencion_predeterminada
+          ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          DEFAULT_PARAMETROS_SISTEMA.umbralSubidaModeradaPct,
+          DEFAULT_PARAMETROS_SISTEMA.umbralSubidaCriticaPct,
+          DEFAULT_PARAMETROS_SISTEMA.umbralConcentracionProveedorPct,
+          DEFAULT_PARAMETROS_SISTEMA.notificarConcentracionProveedor ? 1 : 0,
+          DEFAULT_PARAMETROS_SISTEMA.diasAnticipacionVencimiento,
+          DEFAULT_PARAMETROS_SISTEMA.notificarFacturasVencidas ? 1 : 0,
+          DEFAULT_PARAMETROS_SISTEMA.regimenFiscalPredeterminado || 'IVA_PENINSULAR',
+          DEFAULT_PARAMETROS_SISTEMA.tipoIrpfRetencionPredeterminado || '15%'
+        ]);
+      }
+    }
+  } catch (seedErr) {
+    console.warn('Aviso en siembra inicial de MySQL:', seedErr);
+  }
 }
 
 /**
@@ -791,6 +1020,9 @@ export async function guardarFacturasEnMySQL(facturas: any[]): Promise<{ replica
  * Obtiene todas las facturas y sus líneas asociadas almacenadas en MySQL.
  */
 export async function obtenerFacturasDeMySQL(): Promise<any[]> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -902,6 +1134,9 @@ export async function obtenerFacturasDeMySQL(): Promise<any[]> {
  * Elimina una factura y todas sus líneas de detalle asociadas directamente en MySQL (Single Source of Truth).
  */
 export async function eliminarFacturaDeMySQL(idFactura: string): Promise<{ ok: boolean; affectedRows: number; error?: string }> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) {
     return { ok: false, affectedRows: 0, error: 'MySQL no está disponible' };
@@ -940,6 +1175,9 @@ export async function actualizarEstadoFacturaEnMySQL(
   nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida',
   fechaPago?: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) {
     return { ok: false, error: 'MySQL no está disponible' };
@@ -1007,6 +1245,9 @@ export async function guardarDatosNegocioEnMySQL(
  * Obtiene los datos de identidad del negocio almacenados en la tabla datos_negocio de MySQL.
  */
 export async function obtenerDatosNegocioDeMySQL(): Promise<any | null> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return null;
   try {
@@ -1088,6 +1329,9 @@ export async function guardarCategoriasEnMySQL(
  * Obtiene todas las categorías de gasto almacenadas en la tabla categorias_gasto de MySQL.
  */
 export async function obtenerCategoriasDeMySQL(): Promise<any[]> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -1175,6 +1419,9 @@ export async function guardarProveedoresEnMySQL(
  * Obtiene la lista completa de proveedores registrados en la tabla proveedores de MySQL.
  */
 export async function obtenerProveedoresDeMySQL(): Promise<any[]> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -1208,6 +1455,9 @@ export async function obtenerProveedoresDeMySQL(): Promise<any[]> {
  * Obtiene el histórico de precios de compra registrado en la tabla historico_precios.
  */
 export async function obtenerHistoricoPreciosDeMySQL(producto?: string): Promise<any[]> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -1331,6 +1581,9 @@ export async function guardarParametrosSistemaEnMySQL(params: any): Promise<{ ok
  * Obtiene los parámetros del sistema guardados en la tabla configuracion_parametros de MySQL.
  */
 export async function obtenerParametrosSistemaDeMySQL(): Promise<any | null> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return null;
   try {
@@ -1407,6 +1660,9 @@ export async function guardarAnalisisEjecutivoEnMySQL(analisis: any): Promise<{ 
  * Obtiene el último análisis ejecutivo generado de MySQL.
  */
 export async function obtenerAnalisisEjecutivoDeMySQL(): Promise<any | null> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return null;
   try {
@@ -1467,6 +1723,9 @@ export async function guardarMensajeChatEnMySQL(msg: any): Promise<{ ok: boolean
  * Obtiene el historial persistente de conversación con el Asistente IA de MySQL.
  */
 export async function obtenerHistorialChatDeMySQL(limit: number = 50): Promise<any[]> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -1492,6 +1751,9 @@ export async function obtenerHistorialChatDeMySQL(limit: number = 50): Promise<a
  * Limpia el historial de chat en MySQL.
  */
 export async function limpiarHistorialChatEnMySQL(): Promise<{ ok: boolean }> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return { ok: false };
   try {
@@ -1549,6 +1811,9 @@ export async function guardarDeclaracionAeatEnMySQL(d: any): Promise<{ ok: boole
  * Obtiene las declaraciones fiscales guardadas en MySQL.
  */
 export async function obtenerDeclaracionesAeatDeMySQL(modelo?: string, ejercicio?: number): Promise<any[]> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -1623,6 +1888,9 @@ export async function guardarConfiguracionGoogleEnMySQL(config: any): Promise<{ 
  * Obtiene la configuración de Google Sheets / Drive de MySQL.
  */
 export async function obtenerConfiguracionGoogleDeMySQL(): Promise<any | null> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return null;
   try {
@@ -1864,6 +2132,9 @@ export async function guardarAlertasEnMySQL(
  * Obtiene todas las alertas registradas en la tabla alertas de MySQL.
  */
 export async function obtenerAlertasDeMySQL(): Promise<any[]> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -1912,6 +2183,9 @@ export async function actualizarEstadoAlertaEnMySQL(
   nuevoEstado: 'activa' | 'resuelta' | 'ignorada' | string,
   alertaCompleta?: any
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) {
     return { ok: false, error: 'MySQL no está disponible' };

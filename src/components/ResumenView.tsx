@@ -155,7 +155,12 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
     [facturasFiltradas]
   );
 
-  // Retenciones de IRPF aplicadas en las facturas y Carga Fiscal Total (IVA + IRPF)
+  const reTotal = useMemo(
+    () => facturasFiltradas.reduce((sum, f) => sum + (f.cuotaRecargoEquivalencia || 0), 0),
+    [facturasFiltradas]
+  );
+
+  // Retenciones de IRPF aplicadas en las facturas y Carga Fiscal Total (IVA + RE + IRPF)
   const metricasIRPF = useMemo(() => {
     const resumen = procesarRetencionesIRPF(facturasFiltradas);
     const cuotaTotal = resumen.cuotaIRPFTotal || 0;
@@ -163,8 +168,8 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
     const count = resumen.numFacturasConIRPF || 0;
     const mod111Cuota = resumen.modelo111?.cuotaTotal || 0;
     const mod115Cuota = resumen.modelo115?.cuotaTotal || 0;
-    // Carga fiscal acumulada (Impuesto Indirecto IVA/IGIC Soportado + Retenciones IRPF gestionadas)
-    const cargaFiscalTotal = ivaTotal + cuotaTotal;
+    // Carga fiscal acumulada (Impuesto Indirecto IVA/IGIC Soportado + Recargo de Equivalencia + Retenciones IRPF gestionadas)
+    const cargaFiscalTotal = ivaTotal + reTotal + cuotaTotal;
 
     return {
       cuotaTotal,
@@ -173,9 +178,10 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
       mod111Cuota,
       mod115Cuota,
       cargaFiscalTotal,
+      reTotal,
       numPerceptores: (resumen.perceptores || []).length,
     };
-  }, [facturasFiltradas, ivaTotal]);
+  }, [facturasFiltradas, ivaTotal, reTotal]);
 
   const proveedoresActivos = useMemo(() => {
     const ids = new Set(facturasFiltradas.map((f) => f.idProveedor));
@@ -766,7 +772,7 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
           </div>
         </div>
 
-        {/* KPI 5: IVA Soportado */}
+        {/* KPI 5: IVA Soportado & Recargo de Equivalencia */}
         <div
           id="kpi-iva-soportado"
           onClick={() => onNavigate('iva')}
@@ -774,7 +780,7 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-              5. IVA Soportado
+              5. IVA Soportado {reTotal > 0 ? '+ R.E.' : ''}
             </span>
             <div className="w-8 h-8 rounded-lg bg-sky-500/15 flex items-center justify-center text-sky-400">
               <Receipt className="w-4 h-4" />
@@ -789,11 +795,15 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
               €
             </div>
             <p className="text-[11px] text-slate-300 mt-1 font-medium">
-              Cuota deducible registrada
+              {reTotal > 0
+                ? `IVA deducible (+ ${reTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € R.E.)`
+                : 'Cuota deducible registrada'}
             </p>
           </div>
           <div className="flex items-center justify-between text-xs pt-2.5 border-t border-slate-800/80">
-            <span className="text-[11px] text-slate-300 font-medium">Tipos 21%, 10% y 4%</span>
+            <span className="text-[11px] text-slate-300 font-medium">
+              {reTotal > 0 ? `R.E. acumulado: ${reTotal.toFixed(2)} €` : 'Tipos 21%, 10% y 4%'}
+            </span>
             <span className="text-[11px] text-slate-400 group-hover:text-sky-300 transition-colors font-medium">
               Ver modelo →
             </span>
@@ -829,7 +839,10 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
             </p>
           </div>
           <div className="flex items-center justify-between text-xs pt-2.5 border-t border-slate-800/80">
-            <span className="text-[11px] text-slate-300 font-medium" title={`IVA: ${ivaTotal.toFixed(2)}€ + IRPF: ${metricasIRPF.cuotaTotal.toFixed(2)}€`}>
+            <span
+              className="text-[11px] text-slate-300 font-medium"
+              title={`IVA: ${ivaTotal.toFixed(2)}€${reTotal > 0 ? ` + R.E.: ${reTotal.toFixed(2)}€` : ''} + IRPF: ${metricasIRPF.cuotaTotal.toFixed(2)}€`}
+            >
               Carga fiscal: <strong className="text-emerald-300 font-semibold">{metricasIRPF.cargaFiscalTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong>
             </span>
             <span className="text-[11px] text-slate-400 group-hover:text-emerald-300 transition-colors font-medium">

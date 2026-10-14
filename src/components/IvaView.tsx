@@ -50,6 +50,77 @@ interface IvaViewProps {
 type PeriodoIVA = 'T1' | 'T2' | 'T3' | 'T4' | 'ANUAL';
 type FiltroRegimen = 'TODOS' | 'IVA_GENERAL' | 'IVA_TEMPORAL' | 'IGIC_CANARIAS' | 'IPSI_CEUTA_MELILLA' | 'RECARGO_EQUIVALENCIA' | 'RETENCION_IRPF';
 
+// Mapeo dinámico e inequívoco para cada serie de datos del gráfico comparativo
+const METRICAS_GRAFICO_MAP: Record<string, { label: string; colorClass: string; prefix: string }> = {
+  base: { label: 'Base Imponible', colorClass: 'text-slate-200', prefix: '' },
+  cuotaImpuesto: { label: 'Cuota IVA / IGIC', colorClass: 'text-sky-400', prefix: '+' },
+  cuotaRE: { label: 'Recargo de Equivalencia', colorClass: 'text-purple-400', prefix: '+' },
+  cuotaIRPF: { label: 'Retención IRPF', colorClass: 'text-emerald-400', prefix: '-' },
+};
+
+const CustomTooltipComparativa: React.FC<any> = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+
+  return (
+    <div className="p-3.5 rounded-xl bg-[#0f172a] border border-slate-700 shadow-2xl space-y-2 text-xs font-mono min-w-[230px]">
+      <div className="font-bold text-slate-100 border-b border-slate-800 pb-1.5 font-sans flex items-center justify-between">
+        <span className="text-sky-300 font-semibold">{label}</span>
+      </div>
+      <div className="space-y-1.5">
+        {payload.map((entry: any, index: number) => {
+          const key = String(entry.dataKey || '').toLowerCase();
+          const nameLower = String(entry.name || '').toLowerCase();
+
+          let metricLabel = entry.name || 'Importe';
+          let colorClass = 'text-slate-200';
+          let prefix = '';
+
+          if (key.includes('base') || nameLower.includes('base')) {
+            metricLabel = 'Base Imponible';
+            colorClass = 'text-slate-200';
+            prefix = '';
+          } else if (key.includes('cuotaimpuesto') || key.includes('iva') || key.includes('igic') || nameLower.includes('iva') || nameLower.includes('igic')) {
+            metricLabel = 'Cuota IVA / IGIC';
+            colorClass = 'text-sky-400';
+            prefix = '+';
+          } else if (key.includes('cuotare') || key.includes('re') || key.includes('recargo') || nameLower.includes('recargo')) {
+            metricLabel = 'Recargo de Equivalencia';
+            colorClass = 'text-purple-400';
+            prefix = '+';
+          } else if (key.includes('cuotairpf') || key.includes('irpf') || key.includes('retencion') || nameLower.includes('retención')) {
+            metricLabel = 'Retención IRPF';
+            colorClass = 'text-emerald-400';
+            prefix = '-';
+          } else {
+            const mapped = METRICAS_GRAFICO_MAP[entry.dataKey];
+            if (mapped) {
+              metricLabel = mapped.label;
+              colorClass = mapped.colorClass;
+              prefix = mapped.prefix;
+            }
+          }
+
+          const val = Number(entry.value || 0);
+          const formattedVal = val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const displayPrefix = val > 0 ? prefix : '';
+
+          return (
+            <div key={index} className="flex items-center justify-between gap-4">
+              <span className="text-slate-400 font-sans text-[11px] flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: entry.fill || entry.color }} />
+                <span>{metricLabel}:</span>
+              </span>
+              <span className={`font-bold ${colorClass}`}>
+                {displayPrefix}{formattedVal} €
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion, onNavigateToModelos }) => {
   const [periodo, setPeriodo] = useState<PeriodoIVA>('ANUAL');
   const [filtroRegimen, setFiltroRegimen] = useState<FiltroRegimen>('TODOS');
@@ -216,6 +287,7 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
       base: Math.round(g.base * 100) / 100,
       cuotaImpuesto: Math.round(g.cuota * 100) / 100,
       cuotaRE: Math.round(g.cuotaRE * 100) / 100,
+      cuotaIRPF: Math.round((g.cuotaIRPF || 0) * 100) / 100,
       total: Math.round(g.total * 100) / 100,
     }));
   }, [desgloseActivo]);
@@ -727,6 +799,15 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
                         </span>
                       </div>
                     )}
+
+                    {(item.cuotaIRPF ?? 0) > 0 && (
+                      <div className="flex items-center justify-between text-emerald-300 bg-emerald-950/20 px-2 py-1 rounded-lg border border-emerald-800/40">
+                        <span>Retención IRPF (111/115):</span>
+                        <span className="font-mono font-bold text-emerald-300">
+                          -{item.cuotaIRPF.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -742,7 +823,7 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
         </div>
       </div>
 
-      {/* Comparison Chart: Base vs Cuota Impuesto vs Cuota RE */}
+      {/* Comparison Chart: Base vs Cuota Impuesto vs Cuota RE vs Retención IRPF */}
       <div className="p-6 rounded-2xl bg-[#101726] border border-slate-800/80 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -750,7 +831,7 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
               Distribución Comparativa por Tipos Impositivos
             </h3>
             <p className="text-xs text-slate-300 mt-0.5">
-              Comparativa de Base Imponible, Cuota de IVA/IGIC y Recargo de Equivalencia acumulados
+              Comparativa de Base Imponible, Cuota de IVA/IGIC, Recargo de Equivalencia y Retención IRPF acumulados
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-4 text-xs">
@@ -766,6 +847,10 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
               <span className="w-3 h-3 rounded-sm bg-purple-400"></span>
               <span className="text-slate-300">Recargo Equivalencia</span>
             </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-emerald-400"></span>
+              <span className="text-slate-300">Retención IRPF</span>
+            </div>
           </div>
         </div>
 
@@ -780,22 +865,11 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
                   tick={{ fontSize: 11 }}
                   tickFormatter={(v) => `${(v / 1000).toFixed(1)}k€`}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '0.75rem',
-                    color: '#f8fafc',
-                    fontSize: '12px',
-                  }}
-                  formatter={(v: any, name: string) => [
-                    `${Number(v).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`,
-                    name === 'base' ? 'Base Imponible' : name === 'cuotaImpuesto' ? 'Cuota IVA/IGIC' : 'Recargo Equivalencia',
-                  ]}
-                />
-                <Bar dataKey="base" name="Base Imponible" fill="#475569" radius={[4, 4, 0, 0]} barSize={28} />
-                <Bar dataKey="cuotaImpuesto" name="Cuota IVA/IGIC" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={28} />
-                <Bar dataKey="cuotaRE" name="Recargo Equivalencia" fill="#c084fc" radius={[4, 4, 0, 0]} barSize={28} />
+                <Tooltip content={<CustomTooltipComparativa />} cursor={{ fill: 'rgba(51, 65, 85, 0.2)' }} />
+                <Bar dataKey="base" name="Base Imponible" fill="#475569" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                <Bar dataKey="cuotaImpuesto" name="Cuota IVA/IGIC" fill="#38bdf8" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                <Bar dataKey="cuotaRE" name="Recargo Equivalencia" fill="#c084fc" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                <Bar dataKey="cuotaIRPF" name="Retención IRPF" fill="#34d399" radius={[4, 4, 0, 0]} maxBarSize={22} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

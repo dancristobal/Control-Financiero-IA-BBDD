@@ -112,6 +112,8 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
   const totalGasto = facturas.reduce((sum, f) => sum + (f.total || 0), 0);
   const baseTotal = facturas.reduce((sum, f) => sum + (f.baseImponible || 0), 0);
   const cuotaIvaTotal = facturas.reduce((sum, f) => sum + (f.cuotaIVA || 0), 0);
+  const cuotaRETotal = facturas.reduce((sum, f) => sum + (f.cuotaRecargoEquivalencia || 0), 0);
+  const cuotaIRPFTotal = facturas.reduce((sum, f) => sum + (f.cuotaIRPF || 0), 0);
   const gastoMedio = facturas.length > 0 ? totalGasto / facturas.length : 0;
 
   // Cálculos dinámicos para páginas 4, 6 y 8
@@ -186,11 +188,11 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
   }, [facturas]);
 
   const ivaDesglose = useMemo(() => {
-    const tipos: Record<string, { base: number; cuota: number; count: number }> = {
-      '21%': { base: 0, cuota: 0, count: 0 },
-      '10%': { base: 0, cuota: 0, count: 0 },
-      '4%': { base: 0, cuota: 0, count: 0 },
-      '0% / Exento': { base: 0, cuota: 0, count: 0 },
+    const tipos: Record<string, { base: number; cuota: number; cuotaRE: number; cuotaIRPF: number; count: number }> = {
+      '21%': { base: 0, cuota: 0, cuotaRE: 0, cuotaIRPF: 0, count: 0 },
+      '10%': { base: 0, cuota: 0, cuotaRE: 0, cuotaIRPF: 0, count: 0 },
+      '4%': { base: 0, cuota: 0, cuotaRE: 0, cuotaIRPF: 0, count: 0 },
+      '0% / Exento': { base: 0, cuota: 0, cuotaRE: 0, cuotaIRPF: 0, count: 0 },
     };
 
     facturas.forEach((f) => {
@@ -210,9 +212,11 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
       else if (info.esIpsi) key = `IPSI ${info.porcentaje}%`;
       else if (info.esTemporal) key = `${info.porcentaje}% (Temporal)`;
 
-      if (!tipos[key]) tipos[key] = { base: 0, cuota: 0, count: 0 };
+      if (!tipos[key]) tipos[key] = { base: 0, cuota: 0, cuotaRE: 0, cuotaIRPF: 0, count: 0 };
       tipos[key].base += base;
       tipos[key].cuota += cuota;
+      tipos[key].cuotaRE += Number(f.cuotaRecargoEquivalencia || 0);
+      tipos[key].cuotaIRPF += Number(f.cuotaIRPF || 0);
       tipos[key].count += 1;
     });
 
@@ -220,12 +224,14 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
       tipo,
       base: data.base,
       cuota: data.cuota,
+      cuotaRE: data.cuotaRE,
+      cuotaIRPF: data.cuotaIRPF,
       count: data.count,
     })).filter(d => d.count > 0 || d.base > 0);
 
     if (res.length === 0 && totalGasto > 0) {
       return [
-        { tipo: '21%', base: totalGasto / 1.21, cuota: totalGasto - (totalGasto / 1.21), count: facturas.length || 1 }
+        { tipo: '21%', base: totalGasto / 1.21, cuota: totalGasto - (totalGasto / 1.21), cuotaRE: 0, cuotaIRPF: 0, count: facturas.length || 1 }
       ];
     }
 
@@ -668,7 +674,7 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
           >
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h2 className="text-lg font-bold text-slate-900">
-                Página 8: Resumen y Desglose de IVA
+                Página 8: Resumen y Desglose Tributario (IVA, R.E. e IRPF)
               </h2>
               <span className="text-xs text-slate-500">FINANCE AI • {negocio.nombre}</span>
             </div>
@@ -691,11 +697,54 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span>Cuota IVA Soportada:</span>
-                      <strong className="text-sky-600">{item.cuota.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
+                      <strong className="text-sky-600">+{item.cuota.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
                     </div>
+                    {item.cuotaRE > 0 && (
+                      <div className="flex justify-between text-purple-700">
+                        <span>Recargo de Equivalencia:</span>
+                        <strong>+{item.cuotaRE.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
+                      </div>
+                    )}
+                    {item.cuotaIRPF > 0 && (
+                      <div className="flex justify-between text-emerald-700">
+                        <span>Retención IRPF (111/115):</span>
+                        <strong>-{item.cuotaIRPF.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Cuadro Consolidado de Carga Tributaria */}
+            <div className="p-4 rounded-xl bg-slate-100 border border-slate-300 text-xs font-mono space-y-1.5">
+              <div className="font-bold text-slate-900 text-sm font-sans mb-1">
+                Liquidación Consolidada de Impuestos ({facturas.length} facturas)
+              </div>
+              <div className="flex justify-between text-slate-700">
+                <span>Base Imponible Neta:</span>
+                <strong className="text-slate-900">{baseTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
+              </div>
+              <div className="flex justify-between text-sky-800">
+                <span>(+) Cuota IVA / IGIC Deducible (Mod. 303):</span>
+                <strong>+{cuotaIvaTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
+              </div>
+              {cuotaRETotal > 0 && (
+                <div className="flex justify-between text-purple-800">
+                  <span>(+) Recargo de Equivalencia Repercutido:</span>
+                  <strong>+{cuotaRETotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
+                </div>
+              )}
+              {cuotaIRPFTotal > 0 && (
+                <div className="flex justify-between text-emerald-800">
+                  <span>(-) Retenciones IRPF a Ingresar (Mod. 111/115):</span>
+                  <strong>-{cuotaIRPFTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
+                </div>
+              )}
+              <div className="border-t border-slate-300 pt-1 flex justify-between font-bold text-slate-950 text-sm">
+                <span>Total Líquido Liquidado:</span>
+                <strong className="text-rose-700">{totalGasto.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</strong>
+              </div>
             </div>
           </div>
 

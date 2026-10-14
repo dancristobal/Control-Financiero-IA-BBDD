@@ -1,6 +1,7 @@
-import { Factura, Proveedor, Alerta, CategoriaGastoDef, DatosNegocio } from '../types';
+import { Factura, Proveedor, Alerta, CategoriaGastoDef, DatosNegocio, DEFAULT_DATOS_NEGOCIO } from '../types';
 import { obtenerCategoriasGasto } from '../utils/categoriasGasto';
 import { obtenerParametrosSistema } from '../utils/parametrosSistema';
+import { INITIAL_FACTURAS, INITIAL_PROVEEDORES, INITIAL_ALERTAS } from '../data/mockData';
 
 // ============================================================================
 // DEFINICIÓN DE ESQUEMA COMPATIBLE CON MARIADB Y MYSQL (XAMPP / PRODUCCIÓN)
