@@ -51,7 +51,7 @@ interface ResumenViewProps {
   onOpenCategoriasModal?: () => void;
 }
 
-type PeriodFilter = '7d' | '30d' | 'trimestre' | 'ano' | 'personalizado';
+type PeriodFilter = '7d' | '30d' | 'trimestre' | 'ano' | 'personalizado' | 'todos';
 
 export const ResumenView: React.FC<ResumenViewProps> = ({
   facturas,
@@ -135,6 +135,9 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
           f.fechaEmision >= customStart &&
           f.fechaEmision <= customEnd
         );
+      }
+      if (periodo === 'todos') {
+        return true;
       }
       return true;
     });
@@ -473,6 +476,17 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
               }`}
             >
               Rango
+            </button>
+            <button
+              id="filter-todos"
+              onClick={() => setPeriodo('todos')}
+              className={`px-3 py-1.5 rounded-lg transition-colors ${
+                periodo === 'todos'
+                  ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Todas ({facturas.length})
             </button>
           </div>
 

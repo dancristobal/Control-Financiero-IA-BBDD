@@ -450,6 +450,21 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
                             Ref: {alerta.datosRelacionados.idFactura}
                           </span>
                         )}
+                        {alerta.datosRelacionados.totalFacturas !== undefined && (
+                          <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                            Total Facturas (Tabla): <strong>{alerta.datosRelacionados.totalFacturas}</strong>
+                          </span>
+                        )}
+                        {alerta.datosRelacionados.facturasResumen !== undefined && (
+                          <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                            Contabilizadas en Resumen: <strong>{alerta.datosRelacionados.facturasResumen}</strong>
+                          </span>
+                        )}
+                        {alerta.datosRelacionados.diferencia !== undefined && (
+                          <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold">
+                            Desincronización: {alerta.datosRelacionados.diferencia} facturas
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

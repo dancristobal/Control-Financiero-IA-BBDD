@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Building2,
   AlertTriangle,
@@ -17,12 +17,14 @@ import {
   Eye,
   Edit3,
   Save,
-  Check
+  Check,
+  Calendar
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Proveedor, Factura, DatosNegocio } from '../types';
 import { FacturaDetalleModal } from './FacturaDetalleModal';
 import { VisorFacturaModal } from './VisorFacturaModal';
+import { obtenerParametrosSistema } from '../utils/parametrosSistema';
 
 interface ProveedoresViewProps {
   proveedores: Proveedor[];
@@ -33,6 +35,8 @@ interface ProveedoresViewProps {
   onSaveProveedor?: (proveedor: Proveedor) => Promise<any> | void;
   onActualizarEstadoFactura?: (idFactura: string, nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida') => Promise<any> | void;
 }
+
+type PeriodFilter = '7d' | '30d' | 'trimestre' | 'ano' | 'personalizado' | 'todos';
 
 export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
   proveedores,
@@ -52,12 +56,84 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
   const [proveedorForm, setProveedorForm] = useState<Partial<Proveedor>>({});
   const [guardandoProv, setGuardandoProv] = useState(false);
 
-  // Calculate aggregates for each supplier
+  const [parametrosActivos, setParametrosActivos] = useState(() => obtenerParametrosSistema());
+  const [periodo, setPeriodo] = useState<PeriodFilter>(() => {
+    try {
+      return obtenerParametrosSistema().periodoDashboardPredeterminado || 'ano';
+    } catch {
+      return 'ano';
+    }
+  });
+  const [customStart, setCustomStart] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEnd, setCustomEnd] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Escuchar cambios en parámetros del sistema
+  useEffect(() => {
+    const handleParamsActualizados = (e: any) => {
+      const nuevosParams = e?.detail || obtenerParametrosSistema();
+      setParametrosActivos(nuevosParams);
+      if (nuevosParams.periodoDashboardPredeterminado) {
+        setPeriodo(nuevosParams.periodoDashboardPredeterminado);
+      }
+    };
+    window.addEventListener('fa_parametros_sistema_updated', handleParamsActualizados);
+    return () => {
+      window.removeEventListener('fa_parametros_sistema_updated', handleParamsActualizados);
+    };
+  }, []);
+
+  // Filter facturas based on period
+  const facturasFiltradas = useMemo(() => {
+    const anoRef = parametrosActivos.anoFiscalReferencia || new Date().getFullYear();
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+
+    return facturas.filter((f) => {
+      if (!f.fechaEmision) return true;
+      const fDate = new Date(f.fechaEmision);
+      if (periodo === '7d') {
+        const diffDays = (now.getTime() - fDate.getTime()) / (1000 * 3600 * 24);
+        return diffDays >= 0 && diffDays <= 7;
+      }
+      if (periodo === '30d') {
+        const diffDays = (now.getTime() - fDate.getTime()) / (1000 * 3600 * 24);
+        return diffDays >= 0 && diffDays <= 30;
+      }
+      if (periodo === 'trimestre') {
+        const m = fDate.getMonth();
+        const mesInicioTrimestre = Math.floor(now.getMonth() / 3) * 3;
+        return (
+          fDate.getFullYear() === now.getFullYear() &&
+          m >= mesInicioTrimestre &&
+          m <= mesInicioTrimestre + 2
+        );
+      }
+      if (periodo === 'ano') {
+        return fDate.getFullYear() === anoRef;
+      }
+      if (periodo === 'personalizado') {
+        return (
+          f.fechaEmision >= customStart &&
+          f.fechaEmision <= customEnd
+        );
+      }
+      if (periodo === 'todos') {
+        return true;
+      }
+      return true;
+    });
+  }, [facturas, periodo, customStart, customEnd, parametrosActivos.anoFiscalReferencia]);
+
+  // Calculate aggregates for each supplier using filtered facturas
   const proveedoresConMetricas = useMemo(() => {
-    const totalGastoGlobal = facturas.reduce((acc, f) => acc + f.total, 0);
+    const totalGastoGlobal = facturasFiltradas.reduce((acc, f) => acc + f.total, 0);
 
     return proveedores.map((prov) => {
-      const facturasProv = facturas.filter((f) => 
+      const facturasProv = facturasFiltradas.filter((f) => 
         f.idProveedor === prov.idProveedor ||
         f.nombreProveedor?.trim().toLowerCase() === prov.nombreProveedor?.trim().toLowerCase()
       );
@@ -104,7 +180,7 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
         gastoPorMes,
       };
     });
-  }, [proveedores, facturas]);
+  }, [proveedores, facturasFiltradas]);
 
   // Global fiscal summary across all suppliers/facturas
   const resumenFiscalGlobal = useMemo(() => {
@@ -123,6 +199,9 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
   // Filtered suppliers
   const filtrados = useMemo(() => {
     return proveedoresConMetricas.filter((p) => {
+      if (periodo !== 'todos' && p.facturasCount === 0) {
+        if (!busqueda.trim()) return false;
+      }
       if (busqueda.trim()) {
         const q = busqueda.toLowerCase();
         const match =
@@ -136,7 +215,7 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
       }
       return true;
     });
-  }, [proveedoresConMetricas, busqueda, filtroRiesgo]);
+  }, [proveedoresConMetricas, busqueda, filtroRiesgo, periodo]);
 
   const selectedSupplierDetails = useMemo(() => {
     if (!proveedorSeleccionado) return null;
@@ -166,7 +245,10 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
 
         <div className="flex items-center gap-2 text-xs text-slate-300">
           <span className="px-3 py-1.5 rounded-xl bg-[#0f172a] border border-slate-800">
-            Total Proveedores: <strong className="text-slate-200">{proveedores.length}</strong>
+            Total Proveedores: <strong className="text-slate-200">{filtrados.length}</strong>
+            {filtrados.length !== proveedores.length && (
+              <span className="text-slate-500 text-[10px] ml-1">(de {proveedores.length})</span>
+            )}
           </span>
         </div>
       </div>
@@ -205,17 +287,69 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Buscar por proveedor o producto..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full bg-[#0a0f18] border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500"
-          />
+      {/* Filter Buttons & Period Selection */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center bg-[#0d131f] p-1 rounded-xl border border-slate-800/80 text-xs font-medium">
+          <button
+            onClick={() => setPeriodo('7d')}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              periodo === '7d'
+                ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            7 días
+          </button>
+          <button
+            onClick={() => setPeriodo('30d')}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              periodo === '30d'
+                ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            30 días
+          </button>
+          <button
+            onClick={() => setPeriodo('trimestre')}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              periodo === 'trimestre'
+                ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Trimestre
+          </button>
+          <button
+            onClick={() => setPeriodo('ano')}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              periodo === 'ano'
+                ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Año {parametrosActivos.anoFiscalReferencia || new Date().getFullYear()}
+          </button>
+          <button
+            onClick={() => setPeriodo('personalizado')}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              periodo === 'personalizado'
+                ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Rango
+          </button>
+          <button
+            onClick={() => setPeriodo('todos')}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              periodo === 'todos'
+                ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Todas ({facturas.length})
+          </button>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -230,6 +364,41 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
             <option value="Medio">Riesgo medio</option>
             <option value="Bajo">Bajo riesgo</option>
           </select>
+        </div>
+      </div>
+
+      {/* Date Pickers for Custom Range */}
+      {periodo === 'personalizado' && (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#0e1626] border border-slate-800 text-xs text-slate-300">
+          <Calendar className="w-4 h-4 text-rose-400" />
+          <span>Desde:</span>
+          <input
+            type="date"
+            value={customStart}
+            onChange={(e) => setCustomStart(e.target.value)}
+            className="bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200"
+          />
+          <span>Hasta:</span>
+          <input
+            type="date"
+            value={customEnd}
+            onChange={(e) => setCustomEnd(e.target.value)}
+            className="bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200"
+          />
+        </div>
+      )}
+
+      {/* Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            placeholder="Buscar por proveedor o producto..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full bg-[#0a0f18] border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500"
+          />
         </div>
       </div>
 

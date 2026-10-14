@@ -85,7 +85,8 @@ export type AlertaTipo =
   | 'GASTO INUSUAL'
   | 'NUEVO PROVEEDOR'
   | 'FACTURA VENCIDA'
-  | 'CONCENTRACIÓN DE PROVEEDOR';
+  | 'CONCENTRACIÓN DE PROVEEDOR'
+  | 'DISCREPANCIA RESUMEN';
 
 export type AlertaNivel = 'critica' | 'alta' | 'media' | 'informativa';
 
@@ -107,6 +108,9 @@ export interface Alerta {
     variacionPorcentaje?: number;
     precioAnterior?: number;
     precioNuevo?: number;
+    totalFacturas?: number;
+    facturasResumen?: number;
+    diferencia?: number;
   };
 }
 

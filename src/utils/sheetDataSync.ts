@@ -213,5 +213,31 @@ export function generarAlertasDesdeFacturas(
     });
   }
 
+  // 5. Discrepancia automática entre facturas totales procesadas en la tabla y las contabilizadas en el panel de resumen
+  const anoRef = params.anoFiscalReferencia || new Date().getFullYear();
+  const facturasEnResumen = facturas.filter((f) => {
+    if (!f.fechaEmision) return true;
+    const fDate = new Date(f.fechaEmision);
+    return fDate.getFullYear() === anoRef;
+  });
+
+  if (facturas.length > 0 && facturasEnResumen.length !== facturas.length) {
+    const diferencia = Math.abs(facturas.length - facturasEnResumen.length);
+    alertas.push({
+      id: `ALT-DISC-RESUMEN-${anoRef}`,
+      tipo: 'DISCREPANCIA RESUMEN',
+      nivel: diferencia > 50 ? 'alta' : 'media',
+      titulo: `Desincronización: ${facturas.length} facturas totales vs ${facturasEnResumen.length} en resumen (${anoRef})`,
+      descripcion: `Se detecta una discrepancia entre el número total de facturas procesadas en la tabla (${facturas.length}) y las contabilizadas en el panel de resumen del ejercicio ${anoRef} (${facturasEnResumen.length}). Hay ${diferencia} facturas fuera del filtro de periodo actual. Seleccione la opción "Todas" en el resumen para sincronizar la visualización completa.`,
+      fecha: hoy,
+      estado: 'activa',
+      datosRelacionados: {
+        totalFacturas: facturas.length,
+        facturasResumen: facturasEnResumen.length,
+        diferencia: diferencia,
+      },
+    });
+  }
+
   return alertas;
 }
