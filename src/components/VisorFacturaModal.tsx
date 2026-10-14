@@ -598,9 +598,28 @@ export const VisorFacturaModal: React.FC<VisorFacturaModalProps> = ({
                     <div className="flex justify-between text-slate-600">
                       <span>IVA ({factura.tiposIVA}):</span>
                       <span className="font-mono font-medium text-sky-700">
-                        +{factura.cuotaIVA.toFixed(2)} €
+                        {(factura.cuotaIVA ?? 0) > 0 ? '+' : ''}
+                        {factura.cuotaIVA.toFixed(2)} €
                       </span>
                     </div>
+                    {factura?.aplicaRecargoEquivalencia && factura?.cuotaRecargoEquivalencia !== 0 && (
+                      <div className="flex justify-between text-purple-700">
+                        <span>Recargo Eq. ({factura.tipoRecargoEquivalencia || 'RE'}):</span>
+                        <span className="font-mono font-medium">
+                          {(factura.cuotaRecargoEquivalencia ?? 0) > 0 ? '+' : ''}
+                          {(factura.cuotaRecargoEquivalencia || 0).toFixed(2)} €
+                        </span>
+                      </div>
+                    )}
+                    {factura?.aplicaRetencionIRPF && factura?.cuotaIRPF !== 0 && (
+                      <div className="flex justify-between text-emerald-700 font-semibold">
+                        <span>Ret. IRPF ({factura.porcentajeIRPF || 15}%):</span>
+                        <span className="font-mono">
+                          {(factura.cuotaIRPF ?? 0) > 0 ? '-' : ''}
+                          {(factura.cuotaIRPF || 0).toFixed(2)} €
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-base font-black text-slate-950 pt-2 border-t-2 border-slate-900">
                       <span>TOTAL FACTURA:</span>
                       <span className="font-mono text-rose-700">
@@ -651,15 +670,50 @@ export const VisorFacturaModal: React.FC<VisorFacturaModalProps> = ({
                 <div className="flex justify-between text-slate-400">
                   <span>IVA ({factura.tiposIVA}):</span>
                   <span className="text-sky-400 font-medium">
-                    +{factura.cuotaIVA.toLocaleString('es-ES', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{' '}
+                    {(() => {
+                      const cuota = factura.cuotaIVA ?? 0;
+                      const sign = cuota > 0 ? '+' : '';
+                      return `${sign}${cuota.toLocaleString('es-ES', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`;
+                    })()}{' '}
                     €
                   </span>
                 </div>
+                {factura?.aplicaRecargoEquivalencia && factura?.cuotaRecargoEquivalencia !== 0 && (
+                  <div className="flex justify-between text-purple-400">
+                    <span>Recargo ({factura.tipoRecargoEquivalencia || 'RE'}):</span>
+                    <span className="font-medium">
+                      {(factura.cuotaRecargoEquivalencia ?? 0) > 0 ? '+' : ''}
+                      {(factura.cuotaRecargoEquivalencia || 0).toLocaleString('es-ES', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      €
+                    </span>
+                  </div>
+                )}
+                {factura?.aplicaRetencionIRPF && factura?.cuotaIRPF !== 0 && (
+                  <div className="flex justify-between text-emerald-400">
+                    <span>
+                      Ret. IRPF ({factura.porcentajeIRPF || 15}%
+                      {factura.conceptoRetencionIRPF
+                        ? ` - ${factura.conceptoRetencionIRPF === 'ARRENDAMIENTO' ? 'Mod. 115' : factura.conceptoRetencionIRPF === 'AGRARIO' ? 'Agrario' : 'Mod. 111'}`
+                        : ''}):
+                    </span>
+                    <span className="font-semibold">
+                      {(factura.cuotaIRPF ?? 0) > 0 ? '-' : ''}
+                      {(factura.cuotaIRPF || 0).toLocaleString('es-ES', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{' '}
+                      €
+                    </span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-slate-800 flex justify-between text-sm font-bold">
-                  <span className="text-slate-100">Total:</span>
+                  <span className="text-slate-100">Total Líquido:</span>
                   <span className="text-rose-400">
                     {factura.total.toLocaleString('es-ES', {
                       minimumFractionDigits: 2,

@@ -627,10 +627,10 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
         return false;
       }
       // IRPF Withholding filter
-      if (filtroIRPF === 'CON_IRPF' && !(f.aplicaRetencionIRPF || (f.cuotaIRPF && f.cuotaIRPF > 0))) {
+      if (filtroIRPF === 'CON_IRPF' && !(f?.aplicaRetencionIRPF && (f?.cuotaIRPF ?? 0) !== 0)) {
         return false;
       }
-      if (filtroIRPF === 'SIN_IRPF' && (f.aplicaRetencionIRPF || (f.cuotaIRPF && f.cuotaIRPF > 0))) {
+      if (filtroIRPF === 'SIN_IRPF' && (f?.aplicaRetencionIRPF && (f?.cuotaIRPF ?? 0) !== 0)) {
         return false;
       }
       // Rango económico
@@ -687,6 +687,9 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
       'Base Imponible (€)',
       'Tipos IVA (%)',
       'Cuota IVA (€)',
+      'Aplica Recargo Eq.',
+      'Tipo Recargo (%)',
+      'Cuota Recargo (€)',
       'Retención IRPF (%)',
       'Cuota Retenida IRPF (€)',
       'Concepto Retención IRPF',
@@ -715,9 +718,12 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
       escapeCSV(Number(f.baseImponible || 0).toFixed(2).replace('.', ',')),
       escapeCSV(f.tiposIVA || '21%'),
       escapeCSV(Number(f.cuotaIVA || 0).toFixed(2).replace('.', ',')),
-      escapeCSV(f.aplicaRetencionIRPF || (f.cuotaIRPF && f.cuotaIRPF > 0) ? `${f.porcentajeIRPF || 15}%` : '0%'),
+      escapeCSV(f.aplicaRecargoEquivalencia ? 'SÍ' : 'NO'),
+      escapeCSV(f.aplicaRecargoEquivalencia ? (f.tipoRecargoEquivalencia || '5.2%') : '0%'),
+      escapeCSV(Number(f.cuotaRecargoEquivalencia || 0).toFixed(2).replace('.', ',')),
+      escapeCSV(f?.aplicaRetencionIRPF && (f?.cuotaIRPF ?? 0) !== 0 ? `${f.porcentajeIRPF || 15}%` : '0%'),
       escapeCSV(Number(f.cuotaIRPF || 0).toFixed(2).replace('.', ',')),
-      escapeCSV(f.conceptoRetencionIRPF || (f.cuotaIRPF && f.cuotaIRPF > 0 ? 'PROFESIONAL' : '')),
+      escapeCSV(f.conceptoRetencionIRPF || (f?.aplicaRetencionIRPF && (f?.cuotaIRPF ?? 0) !== 0 ? 'PROFESIONAL' : '')),
       escapeCSV(Number(f.total || 0).toFixed(2).replace('.', ',')),
       escapeCSV(f.categoriaGasto),
       escapeCSV((f as any).metodoPago || ''),
@@ -1571,7 +1577,7 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                 <th className="p-3.5">Proveedor</th>
                 <th className="p-3.5">Concepto</th>
                 <th className="p-3.5 text-right">Base Imp.</th>
-                <th className="p-3.5 text-right">Impuestos / IRPF</th>
+                <th className="p-3.5 text-right">Impuestos / RE / IRPF</th>
                 <th className="p-3.5 text-right">Total Líquido</th>
                 <th className="p-3.5">Categoría</th>
                 <th className="p-3.5">Google Drive</th>
@@ -1619,6 +1625,11 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                         const signIva = cuotaIVA > 0 ? '+' : '';
                         const formattedIva = cuotaIVA.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                         
+                        // Recargo de Equivalencia
+                        const cuotaRE = fac.cuotaRecargoEquivalencia ?? 0;
+                        const signRE = cuotaRE > 0 ? '+' : '';
+                        const formattedRE = cuotaRE.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
                         // IRPF
                         const cuotaIRPF = fac.cuotaIRPF ?? 0;
                         const signIrpf = cuotaIRPF > 0 ? '-' : '';
@@ -1630,6 +1641,11 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                               {signIva}{formattedIva} €
                               <span className="text-[10px] text-slate-300 ml-1">({fac.tiposIVA})</span>
                             </div>
+                            {(fac?.aplicaRecargoEquivalencia && cuotaRE !== 0) && (
+                              <div className="text-[10px] text-purple-400 font-medium mt-0.5">
+                                {signRE}{formattedRE} € ({fac.tipoRecargoEquivalencia || 'RE'})
+                              </div>
+                            )}
                             {(fac?.aplicaRetencionIRPF && cuotaIRPF !== 0) && (
                               <div className="text-[10px] text-emerald-400 font-medium mt-0.5">
                                 {signIrpf}{formattedIrpf} € ({fac.porcentajeIRPF || 15}% IRPF)
@@ -1643,11 +1659,20 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                       <div className="font-bold text-rose-400">
                         {fac.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                       </div>
-                      {(fac?.aplicaRetencionIRPF && (fac?.cuotaIRPF ?? 0) !== 0) && (
-                        <div className="text-[9px] text-emerald-400 font-normal">
-                          Líquido tras IRPF
-                        </div>
-                      )}
+                      {(() => {
+                        const tieneIRPF = fac?.aplicaRetencionIRPF && (fac?.cuotaIRPF ?? 0) !== 0;
+                        const tieneRE = fac?.aplicaRecargoEquivalencia && (fac?.cuotaRecargoEquivalencia ?? 0) !== 0;
+                        if (tieneIRPF && tieneRE) {
+                          return <div className="text-[9px] text-purple-300 font-normal">Líquido (RE e IRPF)</div>;
+                        }
+                        if (tieneIRPF) {
+                          return <div className="text-[9px] text-emerald-400 font-normal">Líquido tras IRPF</div>;
+                        }
+                        if (tieneRE) {
+                          return <div className="text-[9px] text-purple-400 font-normal">Total con Recargo</div>;
+                        }
+                        return null;
+                      })()}
                     </td>
                     <td className="p-3.5 text-slate-300 whitespace-nowrap">
                       {(() => {
