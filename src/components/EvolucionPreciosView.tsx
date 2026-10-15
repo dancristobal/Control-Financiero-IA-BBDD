@@ -87,6 +87,13 @@ export const EvolucionPreciosView: React.FC<EvolucionPreciosViewProps> = ({
   facturas,
 }) => {
   const [parametrosActivos, setParametrosActivos] = useState(() => obtenerParametrosSistema());
+  const [periodo, setPeriodo] = useState<string>('todos');
+  const [customStart, setCustomStart] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEnd, setCustomEnd] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Escuchar cambios en los parámetros del sistema en tiempo real
   useEffect(() => {
@@ -103,7 +110,49 @@ export const EvolucionPreciosView: React.FC<EvolucionPreciosViewProps> = ({
   const umbralModerado = parametrosActivos.umbralSubidaModeradaPct || 8;
   const umbralCritico = parametrosActivos.umbralSubidaCriticaPct || 15;
 
-  // Extract all unique products across all invoice lines
+  // Filtrar facturas según el periodo seleccionado para evolución de precios
+  const facturasFiltradas = useMemo(() => {
+    const anoRef = parametrosActivos.anoFiscalReferencia || new Date().getFullYear();
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+
+    return facturas.filter((f) => {
+      if (!f.fechaEmision) return true;
+      const fDate = new Date(f.fechaEmision);
+      if (periodo === '7d') {
+        const diffDays = (now.getTime() - fDate.getTime()) / (1000 * 3600 * 24);
+        return diffDays >= 0 && diffDays <= 7;
+      }
+      if (periodo === '30d') {
+        const diffDays = (now.getTime() - fDate.getTime()) / (1000 * 3600 * 24);
+        return diffDays >= 0 && diffDays <= 30;
+      }
+      if (periodo === 'trimestre') {
+        const m = fDate.getMonth();
+        const mesInicioTrimestre = Math.floor(now.getMonth() / 3) * 3;
+        return (
+          fDate.getFullYear() === now.getFullYear() &&
+          m >= mesInicioTrimestre &&
+          m <= mesInicioTrimestre + 2
+        );
+      }
+      if (periodo === 'ano') {
+        return fDate.getFullYear() === anoRef;
+      }
+      if (periodo === 'personalizado') {
+        return (
+          f.fechaEmision >= customStart &&
+          f.fechaEmision <= customEnd
+        );
+      }
+      if (periodo === 'todos') {
+        return true;
+      }
+      return true;
+    });
+  }, [facturas, periodo, customStart, customEnd, parametrosActivos.anoFiscalReferencia]);
+
+  // Extract all unique products across invoice lines in filtered period
   const todosLosProductos = useMemo(() => {
     const mapa: Record<
       string,
@@ -118,7 +167,7 @@ export const EvolucionPreciosView: React.FC<EvolucionPreciosViewProps> = ({
       }>
     > = {};
 
-    facturas.forEach((fac) => {
+    facturasFiltradas.forEach((fac) => {
       if (fac.lineas && fac.lineas.length > 0) {
         fac.lineas.forEach((lin) => {
           const prodNombre = lin.nombreProducto.trim();
@@ -144,7 +193,7 @@ export const EvolucionPreciosView: React.FC<EvolucionPreciosViewProps> = ({
     });
 
     return mapa;
-  }, [facturas]);
+  }, [facturasFiltradas]);
 
   // Métricas agregadas por producto para determinar relevancia (gasto y volumen)
   const productosConMetricas = useMemo(() => {
@@ -529,6 +578,108 @@ export const EvolucionPreciosView: React.FC<EvolucionPreciosViewProps> = ({
             <span>Alerta subida: <strong>≥{umbralModerado}%</strong></span>
             <span className="text-slate-500">•</span>
             <span>Crítica: <strong>≥{umbralCritico}%</strong></span>
+          </span>
+        </div>
+      </div>
+
+      {/* Selector de Periodo de Análisis */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#101726] p-3.5 rounded-2xl border border-slate-800 shadow-xl">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-slate-300 mr-1 font-medium">
+            <Calendar className="w-3.5 h-3.5 text-rose-400" />
+            <span>Periodo de análisis:</span>
+          </div>
+          <div className="flex items-center bg-[#0d131f] p-1 rounded-xl border border-slate-800/80 text-xs font-medium">
+            <button
+              onClick={() => setPeriodo('7d')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                periodo === '7d'
+                  ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              7 días
+            </button>
+            <button
+              onClick={() => setPeriodo('30d')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                periodo === '30d'
+                  ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              30 días
+            </button>
+            <button
+              onClick={() => setPeriodo('trimestre')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                periodo === 'trimestre'
+                  ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Trimestre
+            </button>
+            <button
+              onClick={() => setPeriodo('ano')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                periodo === 'ano'
+                  ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Año {parametrosActivos.anoFiscalReferencia || new Date().getFullYear()}
+            </button>
+            <button
+              onClick={() => setPeriodo('personalizado')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                periodo === 'personalizado'
+                  ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Rango
+            </button>
+            <button
+              onClick={() => setPeriodo('todos')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                periodo === 'todos'
+                  ? 'bg-rose-500 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Todas
+            </button>
+          </div>
+
+          {periodo === 'personalizado' && (
+            <div className="flex items-center gap-2 text-xs">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="bg-[#0a0f18] border border-slate-800 rounded-lg px-2.5 py-1 text-slate-200 text-xs focus:outline-none focus:border-rose-500"
+              />
+              <span className="text-slate-500">-</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="bg-[#0a0f18] border border-slate-800 rounded-lg px-2.5 py-1 text-slate-200 text-xs focus:outline-none focus:border-rose-500"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-slate-300">
+          <span className="px-3 py-1.5 rounded-xl bg-[#0a0f18] border border-slate-800">
+            Facturas en periodo: <strong className="text-slate-200">{facturasFiltradas.length}</strong>
+            {facturasFiltradas.length !== facturas.length && (
+              <span className="text-slate-500 text-[10px] ml-1">(de {facturas.length})</span>
+            )}
+          </span>
+          <span className="px-3 py-1.5 rounded-xl bg-[#0a0f18] border border-slate-800">
+            Insumos activos: <strong className="text-rose-400">{listaNombresProductos.length}</strong>
           </span>
         </div>
       </div>
@@ -1130,8 +1281,26 @@ export const EvolucionPreciosView: React.FC<EvolucionPreciosViewProps> = ({
             </div>
           </div>
         ) : (
-          <div className="lg:col-span-2 p-10 rounded-2xl bg-[#101726] border border-slate-800 text-center text-slate-500">
-            Selecciona un producto para visualizar su evolución temporal.
+          <div className="lg:col-span-2 p-10 rounded-2xl bg-[#101726] border border-slate-800 text-center text-slate-400 space-y-3">
+            <Package className="w-10 h-10 text-slate-600 mx-auto" />
+            <h4 className="text-sm font-bold text-slate-200">
+              {listaNombresProductos.length === 0
+                ? 'No hay registros de compras en el periodo seleccionado'
+                : 'Selecciona un producto para visualizar su evolución temporal'}
+            </h4>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              {listaNombresProductos.length === 0
+                ? 'Prueba a ampliar el rango temporal a 30 días, Trimestre, Año o Todas las fechas para auditar la evolución de precios.'
+                : 'Haz clic en cualquier producto de la lista izquierda para auditar sus precios y proveedores.'}
+            </p>
+            {listaNombresProductos.length === 0 && (
+              <button
+                onClick={() => setPeriodo('todos')}
+                className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs shadow-md transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                Restablecer a todas las fechas
+              </button>
+            )}
           </div>
         )}
       </div>
