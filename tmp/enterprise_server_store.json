@@ -1,0 +1,58 @@
+{
+  "facturas": [],
+  "proveedores": [],
+  "datosNegocio": {
+    "nombre": "",
+    "nif": "",
+    "direccion": "",
+    "actividad": "",
+    "sector": "",
+    "contextoOperativo": "",
+    "email": "",
+    "telefono": ""
+  },
+  "categorias": [
+    {
+      "id": "materias-primas",
+      "nombre": "Materias Primas",
+      "descripcion": "Harinas, lácteos, azúcares, ingredientes base y consumibles directos de producción.",
+      "color": "#f43f5e",
+      "esPredeterminada": true
+    },
+    {
+      "id": "suministros-y-energia",
+      "nombre": "Suministros y Energía",
+      "descripcion": "Electricidad, gas, agua, telecomunicaciones, internet y suministros energéticos operativos.",
+      "color": "#0ea5e9",
+      "esPredeterminada": true
+    },
+    {
+      "id": "envases-y-embalajes",
+      "nombre": "Envases y Embalajes",
+      "descripcion": "Cajas kraft, bobinas, bandejas, film, bolsas, etiquetas y material de empaquetado.",
+      "color": "#f59e0b",
+      "esPredeterminada": true
+    },
+    {
+      "id": "logistica-y-transporte",
+      "nombre": "Logística y Transporte",
+      "descripcion": "Portes, transporte frigorífico/refrigerado, envíos urgentes, fletes y servicios de reparto.",
+      "color": "#10b981",
+      "esPredeterminada": true
+    },
+    {
+      "id": "mantenimiento-y-maquinaria",
+      "nombre": "Mantenimiento y Maquinaria",
+      "descripcion": "Reparaciones técnicas, revisiones preventivas de hornos, climatización, recambios y herramientas.",
+      "color": "#8b5cf6",
+      "esPredeterminada": true
+    },
+    {
+      "id": "servicios-y-gestion",
+      "nombre": "Servicios y Gestión",
+      "descripcion": "Asesoría contable, fiscal y laboral, licencias de software, seguros y servicios profesionales.",
+      "color": "#ec4899",
+      "esPredeterminada": true
+    }
+  ]
+}

@@ -1184,3 +1184,58 @@ export function procesarRetencionesIRPF(facturas: Factura[] = []): ResumenRetenc
     desglosePorPorcentaje,
   };
 }
+
+export interface ResultadoValidacionNif {
+  valido: boolean;
+  mensaje: string;
+  tipo: 'DNI' | 'NIE' | 'CIF' | 'OTRO';
+}
+
+export function validarNifCifEsp(valor: string): ResultadoValidacionNif {
+  const limpio = (valor || '').trim().toUpperCase();
+  if (!limpio) return { valido: false, mensaje: 'Introduce un NIF/NIE/CIF', tipo: 'OTRO' };
+
+  // DNI: 8 números + letra
+  const dniRegex = /^(\d{8})([A-Z])$/;
+  if (dniRegex.test(limpio)) {
+    const match = limpio.match(dniRegex)!;
+    const nums = parseInt(match[1], 10);
+    const letra = match[2];
+    const letrasValidas = 'TRWAGMYFPDXBNJZSQVHLCKE';
+    const letraEsperada = letrasValidas[nums % 23];
+    if (letra === letraEsperada) {
+      return { valido: true, mensaje: 'DNI válido', tipo: 'DNI' };
+    } else {
+      return { valido: false, mensaje: `Letra incorrecta. Debería ser '${letraEsperada}'`, tipo: 'DNI' };
+    }
+  }
+
+  // NIE: X, Y, Z + 7 números + letra
+  const nieRegex = /^[XYZ]\d{7}[A-Z]$/;
+  if (nieRegex.test(limpio)) {
+    const primeraLetra = limpio[0];
+    let numStr = limpio.substring(1, 8);
+    if (primeraLetra === 'X') numStr = '0' + numStr;
+    else if (primeraLetra === 'Y') numStr = '1' + numStr;
+    else if (primeraLetra === 'Z') numStr = '2' + numStr;
+
+    const nums = parseInt(numStr, 10);
+    const letra = limpio[8];
+    const letrasValidas = 'TRWAGMYFPDXBNJZSQVHLCKE';
+    const letraEsperada = letrasValidas[nums % 23];
+    if (letra === letraEsperada) {
+      return { valido: true, mensaje: 'NIE válido', tipo: 'NIE' };
+    } else {
+      return { valido: false, mensaje: `Letra NIE incorrecta. Debería ser '${letraEsperada}'`, tipo: 'NIE' };
+    }
+  }
+
+  // CIF: Letra + 7 dígitos + dígito de control (número o letra)
+  const cifRegex = /^[ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]$/;
+  if (cifRegex.test(limpio)) {
+    return { valido: true, mensaje: 'CIF válido', tipo: 'CIF' };
+  }
+
+  return { valido: false, mensaje: 'Formato NIF/NIE/CIF no válido', tipo: 'OTRO' };
+}
+

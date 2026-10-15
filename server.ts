@@ -183,10 +183,10 @@ function loadServerStore(): ServerStoreData {
     const file = getServerStorePath();
     if (fs.existsSync(file)) {
       const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-      if (data && Array.isArray(data.facturas) && data.facturas.length > 0) {
+      if (data && Array.isArray(data.facturas)) {
         return {
           facturas: data.facturas,
-          proveedores: Array.isArray(data.proveedores) && data.proveedores.length > 0 ? data.proveedores : INITIAL_PROVEEDORES,
+          proveedores: Array.isArray(data.proveedores) ? data.proveedores : [],
           datosNegocio: data.datosNegocio || DEFAULT_DATOS_NEGOCIO,
           categorias: Array.isArray(data.categorias) && data.categorias.length > 0 ? data.categorias : DEFAULT_CATEGORIAS_GASTO_SERVER,
         };
@@ -196,8 +196,8 @@ function loadServerStore(): ServerStoreData {
     console.warn('Aviso al cargar server store persistente de disco:', e);
   }
   return {
-    facturas: [...INITIAL_FACTURAS],
-    proveedores: [...INITIAL_PROVEEDORES],
+    facturas: [],
+    proveedores: [],
     datosNegocio: { ...DEFAULT_DATOS_NEGOCIO },
     categorias: [...DEFAULT_CATEGORIAS_GASTO_SERVER],
   };

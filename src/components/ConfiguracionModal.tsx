@@ -56,6 +56,57 @@ import { CategoriasGastoModal } from './CategoriasGastoModal';
 import { ConfiguracionFiscalTab } from './ConfiguracionFiscalTab';
 import { generarScriptSqlCompleto } from '../utils/sqlGenerator';
 
+function validarNifCifEsp(valor: string): { valido: boolean; mensaje: string; tipo: 'DNI' | 'NIE' | 'CIF' | 'OTRO' } {
+  if (!valor || valor.trim() === '') {
+    return { valido: false, mensaje: 'Introduce el NIF o CIF de la empresa', tipo: 'OTRO' };
+  }
+  const clean = valor.trim().toUpperCase().replace(/[\s\-]/g, '');
+
+  // DNI: 8 dígitos + letra
+  const dniRegex = /^(\d{8})([A-Z])$/;
+  if (dniRegex.test(clean)) {
+    const match = clean.match(dniRegex)!;
+    const letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
+    const num = parseInt(match[1], 10);
+    const letraCalc = letras[num % 23];
+    if (letraCalc === match[2]) {
+      return { valido: true, mensaje: 'DNI válido', tipo: 'DNI' };
+    } else {
+      return { valido: false, mensaje: `Letra incorrecta (debería ser '${letraCalc}')`, tipo: 'DNI' };
+    }
+  }
+
+  // NIE: X, Y, Z + 7 dígitos + letra
+  const nieRegex = /^[XYZ]\d{7}[A-Z]$/;
+  if (nieRegex.test(clean)) {
+    const firstChar = clean[0];
+    let prefix = '0';
+    if (firstChar === 'Y') prefix = '1';
+    else if (firstChar === 'Z') prefix = '2';
+    const numStr = prefix + clean.substring(1, 8);
+    const letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
+    const num = parseInt(numStr, 10);
+    const letraCalc = letras[num % 23];
+    if (letraCalc === clean[8]) {
+      return { valido: true, mensaje: 'NIE válido', tipo: 'NIE' };
+    } else {
+      return { valido: false, mensaje: `Letra incorrecta (debería ser '${letraCalc}')`, tipo: 'NIE' };
+    }
+  }
+
+  // CIF: Letra (A-W) + 7 dígitos + dígito/letra de control
+  const cifRegex = /^[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]$/;
+  if (cifRegex.test(clean)) {
+    return { valido: true, mensaje: 'CIF válido', tipo: 'CIF' };
+  }
+
+  if (clean.length >= 8) {
+    return { valido: true, mensaje: 'Formato aceptado', tipo: 'OTRO' };
+  }
+
+  return { valido: false, mensaje: 'Formato incompleto (ej: B82910394)', tipo: 'OTRO' };
+}
+
 interface ConfiguracionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -1295,16 +1346,43 @@ function extractDriveFolderId(input) {
 
                 {/* NIF / CIF */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    NIF / CIF <span className="text-rose-400">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      NIF / CIF <span className="text-rose-400">*</span>
+                    </label>
+                    {negocio.nif && (
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                        validarNifCifEsp(negocio.nif).valido
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                      }`}>
+                        {validarNifCifEsp(negocio.nif).valido ? (
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
+                        )}
+                        <span>{validarNifCifEsp(negocio.nif).mensaje}</span>
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={negocio.nif}
                     onChange={(e) => setNegocio({ ...negocio, nif: e.target.value })}
-                    placeholder="Ej. B-82910394"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0a0f18] border border-slate-700 text-slate-100 text-xs font-mono focus:outline-hidden focus:border-rose-500 transition-colors"
+                    placeholder="Ej. B-82910394 o 12345678Z"
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-[#0a0f18] border text-slate-100 text-xs font-mono focus:outline-hidden transition-colors ${
+                      !negocio.nif
+                        ? 'border-slate-700 focus:border-rose-500'
+                        : validarNifCifEsp(negocio.nif).valido
+                        ? 'border-emerald-500/50 focus:border-emerald-500'
+                        : 'border-rose-500/60 focus:border-rose-500'
+                    }`}
                   />
+                  {!negocio.nif && (
+                    <p className="text-[10px] text-slate-500">
+                      Introduce un DNI, NIE o CIF válido según la normativa fiscal española.
+                    </p>
+                  )}
                 </div>
 
                 {/* Actividad / Subtítulo */}

@@ -120,9 +120,10 @@ export const AnalisisIAView: React.FC<AnalisisIAViewProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <button
             id="btn-analizar-gastos"
-            disabled={loading}
+            disabled={loading || facturas.length === 0}
             onClick={ejecutarAnalisisConGemini}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold tracking-wide shadow-lg shadow-rose-950/40 transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold tracking-wide shadow-lg shadow-rose-950/40 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            title={facturas.length === 0 ? 'Registra o sube facturas para que la IA realice una auditoría' : 'Analizar facturas con Gemini AI'}
           >
             <Sparkles className={`w-4 h-4 text-white ${loading ? 'animate-spin' : ''}`} />
             <span>{loading ? 'ANALIZANDO FACTURAS...' : '✨ ANALIZAR MIS GASTOS'}</span>

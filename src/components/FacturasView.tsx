@@ -1984,11 +1984,47 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
               ) : (
                 <tr>
                   <td colSpan={11} className="p-8 text-center text-slate-300 text-xs">
-                    {facturas.length === 0
-                      ? 'No hay facturas registradas en la base de datos (0 facturas).'
-                      : fechaDesde || fechaHasta
-                      ? `No se encontraron facturas en el rango de fechas seleccionado (${fechaDesde || 'inicio'} a ${fechaHasta || 'fin'}).`
-                      : 'No se encontraron facturas con los filtros seleccionados.'}
+                    {facturas.length === 0 ? (
+                      <div className="py-8 text-center space-y-3">
+                        <FileText className="w-10 h-10 text-slate-600 mx-auto" />
+                        <div className="text-slate-200 font-semibold text-sm">
+                          No hay facturas registradas en el sistema
+                        </div>
+                        <p className="text-xs text-slate-400 max-w-md mx-auto">
+                          Sube un documento PDF o imagen arrastrándolo en la zona superior, toma una foto con la cámara web o introduce los datos manualmente.
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
+                          >
+                            <UploadCloud className="w-4 h-4" />
+                            <span>Seleccionar archivos</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsCameraOpen(true)}
+                            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Camera className="w-4 h-4 text-rose-400" />
+                            <span>Abrir cámara</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => abrirFormularioConFactura()}
+                            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4 text-emerald-400" />
+                            <span>Nueva manual</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : fechaDesde || fechaHasta ? (
+                      `No se encontraron facturas en el rango de fechas seleccionado (${fechaDesde || 'inicio'} a ${fechaHasta || 'fin'}).`
+                    ) : (
+                      'No se encontraron facturas con los filtros seleccionados.'
+                    )}
                   </td>
                 </tr>
               )}

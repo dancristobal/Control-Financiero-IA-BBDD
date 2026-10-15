@@ -43,7 +43,9 @@ import {
   analizarStringTipoImpositivo,
   obtenerRecargoEquivalenciaSugerido,
   extraerPorcentajeIRPF,
+  validarNifCifEsp,
 } from '../utils/fiscalidad';
+
 
 interface FormularioFacturaModalProps {
   isOpen: boolean;
@@ -862,7 +864,23 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
 
             {/* 2. CIF/NIF del Proveedor */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">CIF / NIF Proveedor</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-300">CIF / NIF Proveedor</label>
+                {idProveedor && (
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                    validarNifCifEsp(idProveedor).valido
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  }`}>
+                    {validarNifCifEsp(idProveedor).valido ? (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                    )}
+                    <span>{validarNifCifEsp(idProveedor).mensaje}</span>
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 value={idProveedor}

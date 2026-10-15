@@ -18,13 +18,16 @@ import {
   Edit3,
   Save,
   Check,
-  Calendar
+  Calendar,
+  CheckCircle2
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Proveedor, Factura, DatosNegocio } from '../types';
 import { FacturaDetalleModal } from './FacturaDetalleModal';
 import { VisorFacturaModal } from './VisorFacturaModal';
 import { obtenerParametrosSistema } from '../utils/parametrosSistema';
+import { validarNifCifEsp } from '../utils/fiscalidad';
+
 
 interface ProveedoresViewProps {
   proveedores: Proveedor[];
@@ -403,116 +406,132 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
       </div>
 
       {/* Suppliers Grid / Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtrados.map((prov) => (
-          <div
-            key={prov.idProveedor}
-            onClick={() => setProveedorSeleccionado(prov)}
-            className="p-5 rounded-2xl bg-[#101726] border border-slate-800/80 hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between group shadow-lg shadow-black/20"
-          >
-            <div>
-              {/* Card Header */}
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-slate-300">
-                    {prov.idProveedor}
+      {filtrados.length === 0 ? (
+        <div className="p-12 rounded-2xl bg-[#101726] border border-slate-800 text-center space-y-3">
+          <Building2 className="w-10 h-10 text-slate-600 mx-auto" />
+          <h4 className="text-sm font-bold text-slate-200">
+            {proveedores.length === 0
+              ? 'No hay proveedores registrados'
+              : 'No se encontraron proveedores con los filtros seleccionados'}
+          </h4>
+          <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+            {proveedores.length === 0
+              ? 'Los proveedores se homologarán y registrarán automáticamente en este directorio a medida que proceses facturas en el sistema.'
+              : 'Prueba a cambiar el periodo temporal o el filtro de riesgo.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtrados.map((prov) => (
+            <div
+              key={prov.idProveedor}
+              onClick={() => setProveedorSeleccionado(prov)}
+              className="p-5 rounded-2xl bg-[#101726] border border-slate-800/80 hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between group shadow-lg shadow-black/20"
+            >
+              <div>
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-mono font-bold text-slate-300">
+                      {prov.idProveedor}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-100 group-hover:text-rose-400 transition-colors line-clamp-1 mt-0.5">
+                      {prov.nombreProveedor}
+                    </h3>
+                  </div>
+
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                      prov.riesgoDependencia === 'Alto'
+                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        : prov.riesgoDependencia === 'Medio'
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    }`}
+                  >
+                    Riesgo {prov.riesgoDependencia}
                   </span>
-                  <h3 className="text-base font-bold text-slate-100 group-hover:text-rose-400 transition-colors line-clamp-1 mt-0.5">
-                    {prov.nombreProveedor}
-                  </h3>
                 </div>
 
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                    prov.riesgoDependencia === 'Alto'
-                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                      : prov.riesgoDependencia === 'Medio'
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  }`}
-                >
-                  Riesgo {prov.riesgoDependencia}
-                </span>
-              </div>
-
-              {/* Supplied Products */}
-              <div className="mt-3 p-2.5 rounded-xl bg-[#0a0f18] border border-slate-800/80 text-xs">
-                <div className="text-[10px] text-slate-300 font-medium flex items-center gap-1 mb-1">
-                  <Package className="w-3 h-3 text-slate-400" />
-                  <span>Insumos suministrados:</span>
-                </div>
-                <p className="text-slate-300 line-clamp-2 leading-relaxed">
-                  {prov.productosSuministrados}
-                </p>
-              </div>
-
-              {/* Financial & Tax Metrics */}
-              <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-                <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
-                  <div className="text-[10px] text-slate-400">Base Imponible</div>
-                  <div className="text-xs font-bold text-slate-200 font-mono mt-0.5">
-                    {prov.baseImponibleTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                {/* Supplied Products */}
+                <div className="mt-3 p-2.5 rounded-xl bg-[#0a0f18] border border-slate-800/80 text-xs">
+                  <div className="text-[10px] text-slate-300 font-medium flex items-center gap-1 mb-1">
+                    <Package className="w-3 h-3 text-slate-400" />
+                    <span>Insumos suministrados:</span>
                   </div>
+                  <p className="text-slate-300 line-clamp-2 leading-relaxed">
+                    {prov.productosSuministrados}
+                  </p>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
-                  <div className="text-[10px] text-blue-400">IVA Soportado</div>
-                  <div className="text-xs font-bold text-blue-300 font-mono mt-0.5">
-                    {prov.ivaTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                  </div>
-                </div>
-
-                {prov.recargoTotal > 0 && (
+                {/* Financial & Tax Metrics */}
+                <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
                   <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
-                    <div className="text-[10px] text-amber-400">Recargo Equivalencia</div>
-                    <div className="text-xs font-bold text-amber-300 font-mono mt-0.5">
-                      {prov.recargoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    <div className="text-[10px] text-slate-400">Base Imponible</div>
+                    <div className="text-xs font-bold text-slate-200 font-mono mt-0.5">
+                      {prov.baseImponibleTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                     </div>
                   </div>
-                )}
 
-                {prov.irpfTotal > 0 && (
                   <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
-                    <div className="text-[10px] text-purple-400">Retención IRPF</div>
-                    <div className="text-xs font-bold text-purple-300 font-mono mt-0.5">
-                      {prov.irpfTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    <div className="text-[10px] text-blue-400">IVA Soportado</div>
+                    <div className="text-xs font-bold text-blue-300 font-mono mt-0.5">
+                      {prov.ivaTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                     </div>
                   </div>
-                )}
 
-                <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800 col-span-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-[10px] text-rose-400 font-semibold">Gasto Total Líquido</div>
-                      <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                        {prov.gastoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                  {prov.recargoTotal > 0 && (
+                    <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
+                      <div className="text-[10px] text-amber-400">Recargo Equivalencia</div>
+                      <div className="text-xs font-bold text-amber-300 font-mono mt-0.5">
+                        {prov.recargoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-[10px] text-slate-400">Mensual Ref.</div>
-                      <div className="text-xs font-bold text-slate-300 font-mono mt-0.5">
-                        {prov.importeMensual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                  )}
+
+                  {prov.irpfTotal > 0 && (
+                    <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800">
+                      <div className="text-[10px] text-purple-400">Retención IRPF</div>
+                      <div className="text-xs font-bold text-purple-300 font-mono mt-0.5">
+                        {prov.irpfTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-2.5 rounded-xl bg-[#0d1422] border border-slate-800 col-span-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] text-rose-400 font-semibold">Gasto Total Líquido</div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                          {prov.gastoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] text-slate-400">Mensual Ref.</div>
+                        <div className="text-xs font-bold text-slate-300 font-mono mt-0.5">
+                          {prov.importeMensual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Bottom Meta */}
-            <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-300">
-              <div className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-slate-400" />
-                <span>Entrega: {prov.tiempoMedioEntrega}</span>
-              </div>
-              <div className="flex items-center gap-1 text-slate-300">
-                <FileText className="w-3 h-3 text-slate-400" />
-                <span>{prov.facturasCount} facturas</span>
+              {/* Bottom Meta */}
+              <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-300">
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  <span>Entrega: {prov.tiempoMedioEntrega}</span>
+                </div>
+                <div className="flex items-center gap-1 text-slate-300">
+                  <FileText className="w-3 h-3 text-slate-400" />
+                  <span>{prov.facturasCount} facturas</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Individual Supplier Detail Modal / Drawer */}
       {selectedSupplierDetails && (
@@ -604,7 +623,23 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                     <div>
-                      <label className="block text-[11px] text-slate-400 mb-1">CIF / NIF</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] text-slate-400">CIF / NIF</label>
+                        {proveedorForm.cif && (
+                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                            validarNifCifEsp(proveedorForm.cif).valido
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                          }`}>
+                            {validarNifCifEsp(proveedorForm.cif).valido ? (
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                            ) : (
+                              <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
+                            )}
+                            <span>{validarNifCifEsp(proveedorForm.cif).mensaje}</span>
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={proveedorForm.cif || ''}

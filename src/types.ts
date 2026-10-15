@@ -237,15 +237,14 @@ export const DEFAULT_CONFIGURACION_ALERTAS: ConfiguracionAlertas = {
 };
 
 export const DEFAULT_DATOS_NEGOCIO: DatosNegocio = {
-  nombre: 'Pastelería y Confitería Dulce Capricho S.L.',
-  nif: 'B-82910394',
-  direccion: 'C/ Mayor 24, Obrador Central',
-  actividad: 'Obrador y Confitería Artesanal',
-  sector: 'Hostelería, Obrador de Pastelería y Panadería',
-  contextoOperativo:
-    'Obrador artesanal con despacho directo y distribución B2B a cafeterías y hostelería. Sus compras principales abarcan materias primas agrícolas (harinas especiales, mantequillas, coberturas, azúcares), cajas y envoltorios kraft para take-away, suministros energéticos intensivos en hornos y servicios de transporte refrigerado.',
-  email: 'administracion@dulcecapricho.com',
-  telefono: '+34 912 345 678',
+  nombre: 'Mi Empresa',
+  nif: '',
+  direccion: '',
+  actividad: '',
+  sector: '',
+  contextoOperativo: '',
+  email: '',
+  telefono: '',
 };
 
 export interface ParametrosSistema {
