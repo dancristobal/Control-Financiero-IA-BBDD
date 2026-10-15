@@ -121,20 +121,7 @@ export const TABLAS_SCHEMA_MARIADB: Record<string, DefinicionTablaSql> = {
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`
   },
 
-  facturas_lineas: {
-    nombre: 'facturas_lineas',
-    descripcion: 'Detalle de partidas y productos de cada factura',
-    sqlCreateTable: `CREATE TABLE IF NOT EXISTS facturas_lineas (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  id_factura VARCHAR(100) NOT NULL,
-  nombre_producto VARCHAR(255) NOT NULL,
-  cantidad DECIMAL(10,2) NOT NULL DEFAULT 1.00,
-  unidad VARCHAR(50) DEFAULT 'ud',
-  precio_unitario DECIMAL(12,4) NOT NULL DEFAULT 0.00,
-  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  FOREIGN KEY (id_factura) REFERENCES facturas(id_factura) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`
-  },
+
 
   lineas_factura: {
     nombre: 'lineas_factura',
@@ -195,7 +182,6 @@ export const SQL_TABLAS_ORDENADAS_MARIADB: string[] = [
   TABLAS_SCHEMA_MARIADB.categorias_gasto.sqlCreateTable,
   TABLAS_SCHEMA_MARIADB.proveedores.sqlCreateTable,
   TABLAS_SCHEMA_MARIADB.facturas.sqlCreateTable,
-  TABLAS_SCHEMA_MARIADB.facturas_lineas.sqlCreateTable,
   TABLAS_SCHEMA_MARIADB.lineas_factura.sqlCreateTable,
   TABLAS_SCHEMA_MARIADB.historico_precios.sqlCreateTable,
   TABLAS_SCHEMA_MARIADB.alertas.sqlCreateTable,

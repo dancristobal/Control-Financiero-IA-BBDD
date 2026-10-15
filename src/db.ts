@@ -322,19 +322,7 @@ async function createTablesOnConnection(conn: any): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 
-  // 5. Tabla facturas_lineas (y alias lineas_factura para compatibilidad plena)
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS facturas_lineas (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      id_factura VARCHAR(100) NOT NULL,
-      nombre_producto VARCHAR(255) NOT NULL,
-      cantidad DECIMAL(10,2) NOT NULL DEFAULT 1.00,
-      unidad VARCHAR(50) DEFAULT 'ud',
-      precio_unitario DECIMAL(12,4) NOT NULL DEFAULT 0.00,
-      subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-      FOREIGN KEY (id_factura) REFERENCES facturas(id_factura) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-  `);
+  // 5. Tabla lineas_factura
 
   await conn.query(`
     CREATE TABLE IF NOT EXISTS lineas_factura (
@@ -602,10 +590,7 @@ async function seedInitialDataIfEmpty(conn: any): Promise<void> {
           Number(l.subtotal || (Number(l.cantidad || 1) * Number(l.precioUnitario || 0))),
         ]);
 
-        await conn.query(
-          `INSERT INTO facturas_lineas (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
-          [lineasData]
-        );
+
         await conn.query(
           `INSERT INTO lineas_factura (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
           [lineasData]
@@ -957,7 +942,6 @@ export async function guardarFacturasEnMySQL(facturas: any[]): Promise<{ replica
             }];
 
         // Limpiar líneas anteriores para evitar duplicados
-        await conn.query('DELETE FROM facturas_lineas WHERE id_factura = ?', [idFactura]);
         await conn.query('DELETE FROM lineas_factura WHERE id_factura = ?', [idFactura]);
 
         const lineasData = lineasParaGuardar.map((l: any) => [
@@ -969,10 +953,6 @@ export async function guardarFacturasEnMySQL(facturas: any[]): Promise<{ replica
           Number(l.subtotal || (Number(l.cantidad || 1) * Number(l.precioUnitario || 0))),
         ]);
 
-        await conn.query(
-          `INSERT INTO facturas_lineas (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
-          [lineasData]
-        );
         await conn.query(
           `INSERT INTO lineas_factura (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
           [lineasData]
@@ -1072,26 +1052,11 @@ export async function obtenerFacturasDeMySQL(): Promise<any[]> {
           unidad,
           precio_unitario AS precioUnitario,
           subtotal
-        FROM facturas_lineas
+        FROM lineas_factura
         ORDER BY id ASC
       `);
       lineasRows = lRows || [];
-    } catch {
-      try {
-        const [lRows]: [any[], any] = await conn.query(`
-          SELECT 
-            id_factura AS idFactura,
-            nombre_producto AS nombreProducto,
-            cantidad,
-            unidad,
-            precio_unitario AS precioUnitario,
-            subtotal
-          FROM lineas_factura
-          ORDER BY id ASC
-        `);
-        lineasRows = lRows || [];
-      } catch {}
-    }
+    } catch {}
 
     conn.release();
 

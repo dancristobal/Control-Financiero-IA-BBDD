@@ -201,19 +201,8 @@ export function generarScriptSqlCompleto(options: SqlExportOptions | any[] = {},
     `) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
     ``,
     `-- ------------------------------------------------------------`,
-    `-- 5. Estructura de la tabla: facturas_lineas y lineas_factura`,
+    `-- 5. Estructura de la tabla: lineas_factura`,
     `-- ------------------------------------------------------------`,
-    `CREATE TABLE IF NOT EXISTS \`facturas_lineas\` (`,
-    `  \`id\` INT PRIMARY KEY AUTO_INCREMENT,`,
-    `  \`id_factura\` VARCHAR(100) NOT NULL,`,
-    `  \`nombre_producto\` VARCHAR(255) NOT NULL,`,
-    `  \`cantidad\` DECIMAL(10,2) NOT NULL DEFAULT 1.00,`,
-    `  \`unidad\` VARCHAR(50) DEFAULT 'ud',`,
-    `  \`precio_unitario\` DECIMAL(12,4) NOT NULL DEFAULT 0.00,`,
-    `  \`subtotal\` DECIMAL(12,2) NOT NULL DEFAULT 0.00,`,
-    `  FOREIGN KEY (\`id_factura\`) REFERENCES \`facturas\`(\`id_factura\`) ON DELETE CASCADE`,
-    `) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
-    ``,
     `CREATE TABLE IF NOT EXISTS \`lineas_factura\` (`,
     `  \`id\` INT PRIMARY KEY AUTO_INCREMENT,`,
     `  \`id_factura\` VARCHAR(100) NOT NULL,`,
@@ -433,11 +422,6 @@ export function generarScriptSqlCompleto(options: SqlExportOptions | any[] = {},
       const uni = String(l.unidad || 'ud');
       const pUnit = Number(l.precioUnitario || 0);
       const sub = Number(l.subtotal || cant * pUnit);
-
-      lines.push(
-        `INSERT INTO \`facturas_lineas\` (\`id_factura\`, \`nombre_producto\`, \`cantidad\`, \`unidad\`, \`precio_unitario\`, \`subtotal\`) ` +
-        `VALUES (${escapeSql(idFactura)}, ${escapeSql(prodNom)}, ${cant}, ${escapeSql(uni)}, ${pUnit}, ${sub});`
-      );
 
       lines.push(
         `INSERT INTO \`lineas_factura\` (\`id_factura\`, \`nombre_producto\`, \`cantidad\`, \`unidad\`, \`precio_unitario\`, \`subtotal\`) ` +
