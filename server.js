@@ -1288,19 +1288,9 @@ function generarScriptSqlCompleto(options = {}, provsArg = []) {
     `) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
     ``,
     `-- ------------------------------------------------------------`,
-    `-- 5. Estructura de la tabla: facturas_lineas y lineas_factura`,
+    `-- 5. Estructura de la tabla: lineas_factura`,
     `-- ------------------------------------------------------------`,
-    `CREATE TABLE IF NOT EXISTS \`facturas_lineas\` (`,
-    `  \`id\` INT PRIMARY KEY AUTO_INCREMENT,`,
-    `  \`id_factura\` VARCHAR(100) NOT NULL,`,
-    `  \`nombre_producto\` VARCHAR(255) NOT NULL,`,
-    `  \`cantidad\` DECIMAL(10,2) NOT NULL DEFAULT 1.00,`,
-    `  \`unidad\` VARCHAR(50) DEFAULT 'ud',`,
-    `  \`precio_unitario\` DECIMAL(12,4) NOT NULL DEFAULT 0.00,`,
-    `  \`subtotal\` DECIMAL(12,2) NOT NULL DEFAULT 0.00,`,
-    `  FOREIGN KEY (\`id_factura\`) REFERENCES \`facturas\`(\`id_factura\`) ON DELETE CASCADE`,
-    `) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
-    ``,
+
     `CREATE TABLE IF NOT EXISTS \`lineas_factura\` (`,
     `  \`id\` INT PRIMARY KEY AUTO_INCREMENT,`,
     `  \`id_factura\` VARCHAR(100) NOT NULL,`,
@@ -1484,9 +1474,6 @@ function generarScriptSqlCompleto(options = {}, provsArg = []) {
       const uni = String(l.unidad || "ud");
       const pUnit = Number(l.precioUnitario || 0);
       const sub = Number(l.subtotal || cant * pUnit);
-      lines.push(
-        `INSERT INTO \`facturas_lineas\` (\`id_factura\`, \`nombre_producto\`, \`cantidad\`, \`unidad\`, \`precio_unitario\`, \`subtotal\`) VALUES (${escapeSql(idFactura)}, ${escapeSql(prodNom)}, ${cant}, ${escapeSql(uni)}, ${pUnit}, ${sub});`
-      );
       lines.push(
         `INSERT INTO \`lineas_factura\` (\`id_factura\`, \`nombre_producto\`, \`cantidad\`, \`unidad\`, \`precio_unitario\`, \`subtotal\`) VALUES (${escapeSql(idFactura)}, ${escapeSql(prodNom)}, ${cant}, ${escapeSql(uni)}, ${pUnit}, ${sub});`
       );
@@ -1737,18 +1724,6 @@ async function createTablesOnConnection(conn) {
       INDEX idx_proveedor (id_proveedor),
       INDEX idx_fecha (fecha_emision),
       INDEX idx_estado (estado)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-  `);
-  await conn.query(`
-    CREATE TABLE IF NOT EXISTS facturas_lineas (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      id_factura VARCHAR(100) NOT NULL,
-      nombre_producto VARCHAR(255) NOT NULL,
-      cantidad DECIMAL(10,2) NOT NULL DEFAULT 1.00,
-      unidad VARCHAR(50) DEFAULT 'ud',
-      precio_unitario DECIMAL(12,4) NOT NULL DEFAULT 0.00,
-      subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-      FOREIGN KEY (id_factura) REFERENCES facturas(id_factura) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
   await conn.query(`
@@ -2077,7 +2052,6 @@ async function guardarFacturasEnMySQL(facturas) {
           precioUnitario: importe,
           subtotal: importe
         }];
-        await conn.query("DELETE FROM facturas_lineas WHERE id_factura = ?", [idFactura]);
         await conn.query("DELETE FROM lineas_factura WHERE id_factura = ?", [idFactura]);
         const lineasData = lineasParaGuardar.map((l) => [
           idFactura,
@@ -2087,10 +2061,6 @@ async function guardarFacturasEnMySQL(facturas) {
           Number(l.precioUnitario || 0),
           Number(l.subtotal || Number(l.cantidad || 1) * Number(l.precioUnitario || 0))
         ]);
-        await conn.query(
-          `INSERT INTO facturas_lineas (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
-          [lineasData]
-        );
         await conn.query(
           `INSERT INTO lineas_factura (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
           [lineasData]
@@ -2176,26 +2146,12 @@ async function obtenerFacturasDeMySQL() {
           unidad,
           precio_unitario AS precioUnitario,
           subtotal
-        FROM facturas_lineas
+        FROM lineas_factura
         ORDER BY id ASC
       `);
       lineasRows = lRows || [];
-    } catch {
-      try {
-        const [lRows] = await conn.query(`
-          SELECT 
-            id_factura AS idFactura,
-            nombre_producto AS nombreProducto,
-            cantidad,
-            unidad,
-            precio_unitario AS precioUnitario,
-            subtotal
-          FROM lineas_factura
-          ORDER BY id ASC
-        `);
-        lineasRows = lRows || [];
-      } catch {
-      }
+    } catch (err) {
+      console.warn("Aviso al consultar lineas_factura:", err?.message);
     }
     conn.release();
     const lineasPorFactura = {};
@@ -2241,7 +2197,6 @@ async function eliminarFacturaDeMySQL(idFactura) {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      await conn.query("DELETE FROM facturas_lineas WHERE id_factura = ?", [normalizedId]);
       await conn.query("DELETE FROM lineas_factura WHERE id_factura = ?", [normalizedId]);
       const [res] = await conn.query("DELETE FROM facturas WHERE id_factura = ?", [normalizedId]);
       await conn.commit();

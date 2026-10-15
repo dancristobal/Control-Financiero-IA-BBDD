@@ -930,7 +930,7 @@ export async function guardarFacturasEnMySQL(facturas: any[]): Promise<{ replica
           f.driveFileUrl || f.archivoRuta || (f as any).archivo_ruta || null
         ]);
 
-        // 3. Guardar líneas de factura (garantizando registros en facturas_lineas y lineas_factura)
+        // 3. Guardar líneas de factura (garantizando registros en lineas_factura)
         const lineasParaGuardar = Array.isArray(f.lineas) && f.lineas.length > 0
           ? f.lineas
           : [{
