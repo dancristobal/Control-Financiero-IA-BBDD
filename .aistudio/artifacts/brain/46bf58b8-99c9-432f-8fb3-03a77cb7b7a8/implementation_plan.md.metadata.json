@@ -1,6 +1,6 @@
 {
-  "summary":  "Plan de implementación integral para expandir Finance AI con Facturación de Ingresos y Cobros (Order-to-Cash), Cumplimiento Fiscal y Libros Oficiales AEAT (IVA Repercutido vs Soportado, Modelos 303/130/111/115/347), y Analítica Financiera Ejecutiva (P&L, Margen Neto, EBITDA y Previsión de Tesorería).",
-  "updatedAt":  "2026-10-11T12:55:18.361503371Z",
-  "requestFeedback":  true,
-  "userFacing":  true
+  "summary": "Plan de implementación para la creación de la skill especializada de agente 'invoice-ocr-validation', orientada a la extracción inteligente multimodal de facturas con Gemini, validación contable española y resolución de descuadres impositivos.",
+  "updatedAt": "2026-10-15T16:36:01.596886053Z",
+  "requestFeedback": true,
+  "userFacing": true
 }

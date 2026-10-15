@@ -87,7 +87,7 @@ export const EvolucionPreciosView: React.FC<EvolucionPreciosViewProps> = ({
   facturas,
 }) => {
   const [parametrosActivos, setParametrosActivos] = useState(() => obtenerParametrosSistema());
-  const [periodo, setPeriodo] = useState<string>('todos');
+  const [periodo, setPeriodo] = useState<string>('ano');
   const [customStart, setCustomStart] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
