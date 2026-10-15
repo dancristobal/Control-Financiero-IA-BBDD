@@ -1111,8 +1111,7 @@ export async function eliminarFacturaDeMySQL(idFactura: string): Promise<{ ok: b
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      // Eliminar líneas de detalle en ambas variantes de tabla
-      await conn.query('DELETE FROM facturas_lineas WHERE id_factura = ?', [normalizedId]);
+      // Eliminar líneas de detalle
       await conn.query('DELETE FROM lineas_factura WHERE id_factura = ?', [normalizedId]);
       const [res]: [any, any] = await conn.query('DELETE FROM facturas WHERE id_factura = ?', [normalizedId]);
       await conn.query('DELETE FROM alertas WHERE id LIKE ? OR id LIKE ?', [
