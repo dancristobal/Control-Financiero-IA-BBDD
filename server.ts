@@ -184,9 +184,10 @@ function loadServerStore(): ServerStoreData {
     if (fs.existsSync(file)) {
       const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
       if (data && Array.isArray(data.facturas)) {
+        const hasDemoInvoices = data.facturas.length > 10 || data.facturas.some((f: any) => f.idFactura === 'FAC-001' || f.nombreProveedor?.includes('Harinas'));
         return {
-          facturas: data.facturas,
-          proveedores: Array.isArray(data.proveedores) ? data.proveedores : [],
+          facturas: hasDemoInvoices ? [] : data.facturas,
+          proveedores: hasDemoInvoices ? [] : (Array.isArray(data.proveedores) ? data.proveedores : []),
           datosNegocio: data.datosNegocio || DEFAULT_DATOS_NEGOCIO,
           categorias: Array.isArray(data.categorias) && data.categorias.length > 0 ? data.categorias : DEFAULT_CATEGORIAS_GASTO_SERVER,
         };
@@ -2018,7 +2019,7 @@ app.post('/api/alertas/:id/estado', async (req, res) => {
 app.get('/api/facturas', async (req, res) => {
   try {
     const facturas = await obtenerFacturasDeMySQL();
-    if (facturas && facturas.length > 0) {
+    if (facturas && Array.isArray(facturas) && facturas.length > 0) {
       serverFacturas = [...facturas];
       persistServerStore();
       return res.json({ success: true, facturas, count: facturas.length, fuente: 'mysql' });
@@ -2026,7 +2027,11 @@ app.get('/api/facturas', async (req, res) => {
   } catch (err: any) {
     console.warn('Aviso al consultar facturas en MySQL:', err?.message);
   }
-  return res.json({ success: true, facturas: serverFacturas, count: serverFacturas.length, fuente: 'persistent_cache' });
+  if (serverFacturas.length > 10 || serverFacturas.some(f => f.idFactura === 'FAC-001')) {
+    serverFacturas = [];
+    persistServerStore();
+  }
+  return res.json({ success: true, facturas: serverFacturas, count: serverFacturas.length, fuente: serverFacturas.length > 0 ? 'persistent_cache' : 'empty' });
 });
 
 app.post('/api/facturas', async (req, res) => {
