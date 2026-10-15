@@ -23,6 +23,7 @@ import {
   calcularModelo347,
   calcularModelo349
 } from '../utils/modelosFiscales';
+import { obtenerParametrosSistema } from '../utils/parametrosSistema';
 import {
   FileText,
   AlertTriangle,
@@ -54,13 +55,20 @@ interface ModelosFiscalesViewProps {
 
 export const ModelosFiscalesView: React.FC<ModelosFiscalesViewProps> = ({
   facturas,
-  anioInicial = 2026,
+  anioInicial,
   trimestreInicial = 'T1',
   onOpenConfiguracion,
 }) => {
   const [modeloActivo, setModeloActivo] = useState<ModeloFiscalTab>('303');
   const [trimestre, setTrimestre] = useState<TrimestreFiscal>(trimestreInicial);
-  const [anio, setAnio] = useState<number>(anioInicial);
+  const [anio, setAnio] = useState<number>(() => {
+    if (anioInicial) return anioInicial;
+    try {
+      return obtenerParametrosSistema().anoFiscalReferencia || 2026;
+    } catch {
+      return 2026;
+    }
+  });
 
   // Datos complementarios de ingresos y nóminas
   const [datosAdicionales, setDatosAdicionales] = useState<DatosAdicionalesFiscalesAnio>(() =>
@@ -69,10 +77,23 @@ export const ModelosFiscalesView: React.FC<ModelosFiscalesViewProps> = ({
   const [mostrarEditorIngresos, setMostrarEditorIngresos] = useState<boolean>(false);
   const [guardadoExitoso, setGuardadoExitoso] = useState<boolean>(false);
 
-  // Recargar datos si cambia el año
+  // Recargar datos si cambia el año o los parámetros del sistema
   useEffect(() => {
     setDatosAdicionales(obtenerDatosAdicionalesFiscales(anio));
   }, [anio]);
+
+  useEffect(() => {
+    const handleParamsActualizados = (e: any) => {
+      const p = e?.detail || obtenerParametrosSistema();
+      if (p?.anoFiscalReferencia && !anioInicial) {
+        setAnio(p.anoFiscalReferencia);
+      }
+    };
+    window.addEventListener('fa_parametros_sistema_updated', handleParamsActualizados);
+    return () => {
+      window.removeEventListener('fa_parametros_sistema_updated', handleParamsActualizados);
+    };
+  }, [anioInicial]);
 
   // Actualizar un campo del trimestre actual
   const handleUpdateCampoTrimestre = (

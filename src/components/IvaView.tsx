@@ -163,9 +163,14 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
     return isNaN(d.getTime()) ? -1 : d.getMonth();
   };
 
-  // Filtrado de facturas según el periodo fiscal (T1, T2, T3, T4 o ANUAL)
+  // Filtrado de facturas según el periodo fiscal (T1, T2, T3, T4 o ANUAL) y Año Fiscal de Referencia
   const facturasPeriodo = useMemo(() => {
+    const anoRef = parametros.anoFiscalReferencia || 2026;
     return facturas.filter((f) => {
+      if (f.fechaEmision) {
+        const fYear = new Date(f.fechaEmision).getFullYear();
+        if (!isNaN(fYear) && fYear !== anoRef) return false;
+      }
       if (periodo === 'ANUAL') return true;
       const m = obtenerMesDeFecha(f.fechaEmision);
       if (m < 0) return true; // Si la fecha no se puede determinar con certeza, incluirla para no omitir importes
@@ -175,7 +180,7 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
       if (periodo === 'T4') return m >= 9 && m <= 11; // Oct, Nov, Dic
       return true;
     });
-  }, [facturas, periodo]);
+  }, [facturas, periodo, parametros.anoFiscalReferencia]);
 
   // Resumen fiscal general del periodo sin filtrar por régimen
   const balancePeriodo = useMemo(() => {
@@ -394,7 +399,7 @@ export const IvaView: React.FC<IvaViewProps> = ({ facturas, onOpenConfiguracion,
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Año 2026
+            Año {parametros.anoFiscalReferencia || 2026}
           </button>
         </div>
       </div>

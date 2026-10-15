@@ -63,7 +63,7 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
   const [filtroNivel, setFiltroNivel] = useState('TODOS');
   const [filtroEstado, setFiltroEstado] = useState<'activa' | 'resuelta' | 'ignorada' | 'TODOS'>('activa');
   const [parametrosActivos, setParametrosActivos] = useState(() => obtenerParametrosSistema());
-  const [periodoAlertas, setPeriodoAlertas] = useState<string>('todos');
+  const [periodoAlertas, setPeriodoAlertas] = useState<string>('ano');
   const [customStart, setCustomStart] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
@@ -474,7 +474,7 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Todas (Recomendado)
+              Todas
             </button>
             <button
               onClick={() => setPeriodoAlertas('7d')}
