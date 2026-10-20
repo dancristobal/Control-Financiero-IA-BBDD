@@ -17,7 +17,8 @@ import {
   Percent,
   Tag,
   Landmark,
-  ShieldCheck
+  ShieldCheck,
+  CalendarClock
 } from 'lucide-react';
 import {
   AreaChart,
@@ -200,6 +201,21 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
     () => alertas.filter((a) => a.estado === 'activa' && a.nivel === 'critica').length,
     [alertas]
   );
+
+  const resumenVencimientos = useMemo(() => {
+    const pend = facturas.filter((f) => f.estado === 'Pendiente' || f.estado === 'Vencida');
+    const hoy = new Date().toISOString().split('T')[0];
+    const totalPendiente = pend.reduce((acc, f) => acc + (Number(f.total) || 0), 0);
+    const vencidas = pend.filter((f) => {
+      const fVenc = f.fechaVencimiento || f.fechaEmision || hoy;
+      return fVenc < hoy;
+    });
+    return {
+      count: pend.length,
+      total: totalPendiente,
+      countVencidas: vencidas.length,
+    };
+  }, [facturas]);
 
   // Variación Porcentual Automática del Gasto Total (Mes Actual frente al Anterior)
   const metricasMesVsMes = useMemo(() => {
@@ -510,6 +526,16 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
           </button>
 
           <button
+            id="btn-quick-vencimientos"
+            onClick={() => onNavigate('vencimientos')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-amber-200 text-xs font-bold tracking-wide transition-all cursor-pointer"
+            title="Ver calendario interactivo y control de vencimientos pendientes"
+          >
+            <CalendarClock className="w-4 h-4 text-amber-400" />
+            <span>CALENDARIO PAGOS ({resumenVencimientos.count})</span>
+          </button>
+
+          <button
             id="btn-quick-ia"
             onClick={onOpenAnalysis}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-rose-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 text-xs font-bold transition-all cursor-pointer"
@@ -570,6 +596,51 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
             className="px-3 py-1.5 text-xs font-semibold text-red-300 hover:text-white bg-red-900/40 hover:bg-red-800/60 rounded-lg border border-red-700/50 shrink-0 transition-colors"
           >
             Ver Detalles
+          </button>
+        </div>
+      )}
+
+      {/* Vencimientos Pending Payments Banner */}
+      {resumenVencimientos.count > 0 && (
+        <div
+          onClick={() => onNavigate('vencimientos')}
+          className="p-4 rounded-xl bg-amber-950/25 border border-amber-500/40 hover:border-amber-500/70 flex items-center justify-between gap-4 shadow-lg shadow-amber-950/20 cursor-pointer transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+              <CalendarClock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 uppercase tracking-wide">
+                  Calendario de Pagos Activo
+                </span>
+                {resumenVencimientos.countVencidas > 0 && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 uppercase tracking-wide">
+                    {resumenVencimientos.countVencidas} Fuera de Plazo
+                  </span>
+                )}
+              </div>
+              <h4 className="text-sm font-bold text-slate-100 mt-0.5">
+                {resumenVencimientos.count} facturas pendientes de pago por un total de{' '}
+                <span className="font-mono text-amber-300 font-black">
+                  {resumenVencimientos.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                </span>
+              </h4>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Haz clic para consultar el cronograma de tesorería y el calendario mensual interactivo.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate('vencimientos');
+            }}
+            className="px-3.5 py-2 text-xs font-bold text-slate-950 bg-amber-500 hover:bg-amber-400 rounded-lg shadow-md shrink-0 transition-colors flex items-center gap-1.5"
+          >
+            <span>Ver Calendario</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </div>
       )}

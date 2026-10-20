@@ -46,7 +46,8 @@ import {
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+// Runtime Environment requires listening strictly on port 3000
+const PORT = 3000;
 
 // Safe body parser for both standalone Express and Vercel Serverless Function runtimes
 app.use((req: any, _res, next) => {
@@ -2589,29 +2590,16 @@ async function startServer() {
 export default app;
 export { app, startServer };
 
-// Determine if the file is being executed directly via CLI (npm run dev, node dist/server.cjs)
-// rather than imported as a library/serverless function
-const isExecutedDirectly = (() => {
-  if (typeof process === 'undefined' || !process.argv || !process.argv[1]) return false;
-  // If running in Vercel or other serverless environment, never auto-start standalone HTTP listener
-  if (
-    process.env.VERCEL ||
-    process.env.VERCEL_ENV ||
-    process.env.NOW_REGION ||
-    process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.LAMBDA_TASK_ROOT
-  ) {
-    return false;
-  }
-  const scriptPath = process.argv[1];
-  return (
-    scriptPath.endsWith('server.ts') ||
-    scriptPath.endsWith('server.cjs') ||
-    scriptPath.endsWith('server.js')
-  );
-})();
+// Start server unless running inside a serverless lambda environment (Vercel / AWS Lambda)
+const isServerless = Boolean(
+  process.env.VERCEL ||
+  process.env.VERCEL_ENV ||
+  process.env.NOW_REGION ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.LAMBDA_TASK_ROOT
+);
 
-if (isExecutedDirectly) {
+if (!isServerless) {
   startServer().catch((err) => {
     console.error('Error starting Finance AI server:', err);
   });

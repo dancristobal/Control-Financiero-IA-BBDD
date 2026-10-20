@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ResumenView } from './components/ResumenView';
 import { FacturasView } from './components/FacturasView';
@@ -8,6 +8,7 @@ import { AlertasView } from './components/AlertasView';
 import { IvaView } from './components/IvaView';
 import { ModelosFiscalesView } from './components/ModelosFiscalesView';
 import { AnalisisIAView } from './components/AnalisisIAView';
+import { DashboardVencimientos } from './components/DashboardVencimientos';
 import { ChatFacturasModal } from './components/ChatFacturasModal';
 import { InformePdfModal } from './components/InformePdfModal';
 import { ConfiguracionModal } from './components/ConfiguracionModal';
@@ -743,6 +744,16 @@ export default function App() {
   };
 
   const alertasActivasCount = alertas.filter((a) => a.estado === 'activa').length;
+  const facturasPendientesList = useMemo(() => {
+    return facturas.filter((f) => f.estado === 'Pendiente' || f.estado === 'Vencida');
+  }, [facturas]);
+  const hoyStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const facturasVencidasCount = useMemo(() => {
+    return facturasPendientesList.filter((f) => {
+      const fVenc = f.fechaVencimiento || f.fechaEmision || hoyStr;
+      return fVenc < hoyStr;
+    }).length;
+  }, [facturasPendientesList, hoyStr]);
 
   return (
     <div className="min-h-screen bg-[#080c14] text-slate-100 flex flex-col lg:flex-row antialiased">
@@ -755,6 +766,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         alertasActivasCount={alertasActivasCount}
         facturasCount={facturas.length}
+        pendientesCount={facturasPendientesList.length}
+        vencidasCount={facturasVencidasCount}
         sheetsConfig={sheetsConfig}
         onOpenConfig={() => setIsConfigOpen(true)}
         onOpenChat={() => setIsChatOpen(true)}
@@ -789,6 +802,8 @@ export default function App() {
                 ? 'Panel de Control Financiero'
                 : activeTab === 'facturas'
                 ? 'Gestión Contable de Facturas'
+                : activeTab === 'vencimientos'
+                ? 'Dashboard de Vencimientos y Calendario'
                 : activeTab === 'proveedores'
                 ? 'Directorio de Proveedores'
                 : activeTab === 'precios'
@@ -949,6 +964,17 @@ export default function App() {
               onUploadToDrive={handleUploadToDrive}
               onActualizarEstadoFactura={handleActualizarEstadoFactura}
             />
+          )}
+
+          {activeTab === 'vencimientos' && (
+            <ErrorBoundary fallbackTitle="Error al cargar el Dashboard de Vencimientos" onReset={() => setActiveTab('resumen')}>
+              <DashboardVencimientos
+                facturas={facturas}
+                proveedores={proveedores}
+                onActualizarEstadoFactura={handleActualizarEstadoFactura}
+                onNavigateToFacturas={() => setActiveTab('facturas')}
+              />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'proveedores' && (

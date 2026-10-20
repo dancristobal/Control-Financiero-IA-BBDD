@@ -1,23 +1,20 @@
 // server.ts
 import express from "express";
-import path from "path";
+import path2 from "path";
+import fs2 from "fs";
 import dotenv2 from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 
-// src/db.ts
-import mysql from "mysql2/promise";
-import dotenv from "dotenv";
-
 // src/types.ts
 var DEFAULT_DATOS_NEGOCIO = {
-  nombre: "Pasteler\xEDa y Confiter\xEDa Dulce Capricho S.L.",
-  nif: "B-82910394",
-  direccion: "C/ Mayor 24, Obrador Central",
-  actividad: "Obrador y Confiter\xEDa Artesanal",
-  sector: "Hosteler\xEDa, Obrador de Pasteler\xEDa y Panader\xEDa",
-  contextoOperativo: "Obrador artesanal con despacho directo y distribuci\xF3n B2B a cafeter\xEDas y hosteler\xEDa. Sus compras principales abarcan materias primas agr\xEDcolas (harinas especiales, mantequillas, coberturas, az\xFAcares), cajas y envoltorios kraft para take-away, suministros energ\xE9ticos intensivos en hornos y servicios de transporte refrigerado.",
-  email: "administracion@dulcecapricho.com",
-  telefono: "+34 912 345 678"
+  nombre: "Mi Empresa",
+  nif: "",
+  direccion: "",
+  actividad: "",
+  sector: "",
+  contextoOperativo: "",
+  email: "",
+  telefono: ""
 };
 var TIPOS_IMPOSITIVOS_PREDETERMINADOS = [
   // Régimen General Peninsular (IVA)
@@ -385,735 +382,35 @@ var DEFAULT_PARAMETROS_SISTEMA = {
   tiposRetencionIRPF: TIPOS_RETENCION_IRPF_PREDETERMINADOS
 };
 
+// src/db.ts
+import mysql from "mysql2/promise";
+import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+
 // src/data/mockData.ts
-var INITIAL_PROVEEDORES = [
-  {
-    idProveedor: "PROV-001",
-    nombreProveedor: "Harinas y Granos del Sur S.L.",
-    productosSuministrados: "Harina de fuerza 25 kg, Harina reposter\xEDa W200, Salvado de trigo",
-    importeMensual: 4620,
-    frecuencia: "Semanal",
-    riesgoDependencia: "Alto",
-    tiempoMedioEntrega: "24-48h",
-    cif: "B-41892019",
-    contacto: "pedidos@harinasgranosur.es"
-  },
-  {
-    idProveedor: "PROV-002",
-    nombreProveedor: "L\xE1cteos & Mantequillas Cantabria S.A.",
-    productosSuministrados: "Mantequilla artesanal 82% 5kg, Nata pura 35% 1L, Leche entera UHT",
-    importeMensual: 3840.5,
-    frecuencia: "Quincenal",
-    riesgoDependencia: "Medio",
-    tiempoMedioEntrega: "48h",
-    cif: "A-39012487",
-    contacto: "comercial@lacteoscantabria.es"
-  },
-  {
-    idProveedor: "PROV-003",
-    nombreProveedor: "Dulces e Ingredientes del Valle S.L.",
-    productosSuministrados: "Az\xFAcar blanquilla 25kg, Az\xFAcar glas micro 10kg, Cobertura chocolate 70%",
-    importeMensual: 2950,
-    frecuencia: "Quincenal",
-    riesgoDependencia: "Medio",
-    tiempoMedioEntrega: "48-72h",
-    cif: "B-28941032",
-    contacto: "ventas@ingredientesdelvalle.com"
-  },
-  {
-    idProveedor: "PROV-004",
-    nombreProveedor: "Envases & Packaging Gourmet S.L.",
-    productosSuministrados: "Cajas tarta kraft 25x25, Bolsas ventana microperforadas, Papel antigrasa",
-    importeMensual: 1780,
-    frecuencia: "Mensual",
-    riesgoDependencia: "Bajo",
-    tiempoMedioEntrega: "72h",
-    cif: "B-08341902",
-    contacto: "pedidos@packaginggourmet.es"
-  },
-  {
-    idProveedor: "PROV-005",
-    nombreProveedor: "Frutas Seleccionadas & Esencias Ib\xE9rica",
-    productosSuministrados: "Pur\xE9 de frambuesa 1kg, Vainilla Bourbon Madagascar, Nueces pecanas 5kg",
-    importeMensual: 1420,
-    frecuencia: "Mensual",
-    riesgoDependencia: "Bajo",
-    tiempoMedioEntrega: "48h",
-    cif: "B-46901823",
-    contacto: "pedidos@frutasesencias.es"
-  },
-  {
-    idProveedor: "PROV-006",
-    nombreProveedor: "Iberdrola Clientes S.A.U.",
-    productosSuministrados: "Suministro el\xE9ctrico hornos industriales y c\xE1maras de fermentaci\xF3n",
-    importeMensual: 2150,
-    frecuencia: "Mensual",
-    riesgoDependencia: "Alto",
-    tiempoMedioEntrega: "Continuo",
-    cif: "A-95748392",
-    contacto: "empresas@iberdrola.es"
-  },
-  {
-    idProveedor: "PROV-007",
-    nombreProveedor: "Fr\xEDo Express Log\xEDstica Alimentaria",
-    productosSuministrados: "Transporte refrigerado entregas B2B obradores y eventos",
-    importeMensual: 1350,
-    frecuencia: "Mensual",
-    riesgoDependencia: "Bajo",
-    tiempoMedioEntrega: "24h",
-    cif: "B-50123984",
-    contacto: "operaciones@frioexpress.es"
-  },
-  {
-    idProveedor: "PROV-008",
-    nombreProveedor: "Molinos & Harinas del Ebro S.A.",
-    productosSuministrados: "Harina de fuerza 25 kg, Harina reposter\xEDa W200, Salvado de trigo",
-    importeMensual: 1420,
-    frecuencia: "Mensual",
-    riesgoDependencia: "Bajo",
-    tiempoMedioEntrega: "48h",
-    cif: "A-50982314",
-    contacto: "pedidos@molinosebro.es"
-  },
-  {
-    idProveedor: "PROV-011",
-    nombreProveedor: "Asesor\xEDa Fiscal & Laboral G\xF3mez & Asociados",
-    productosSuministrados: "Asesor\xEDa tributaria, contabilidad mercantil y laboral",
-    importeMensual: 650,
-    frecuencia: "Mensual",
-    riesgoDependencia: "Bajo",
-    tiempoMedioEntrega: "Inmediato",
-    cif: "B-84729103",
-    contacto: "info@gomezasociadosfiscal.es"
-  },
-  {
-    idProveedor: "PROV-012",
-    nombreProveedor: "Inmobiliaria & Locales Comerciales Centro S.L.",
-    productosSuministrados: "Arrendamiento de nave obrador central y muelle log\xEDstico",
-    importeMensual: 1800,
-    frecuencia: "Mensual",
-    riesgoDependencia: "Medio",
-    tiempoMedioEntrega: "Continuo",
-    cif: "B-28019482",
-    contacto: "patrimonio@inmobiliariacentro.es"
-  }
-];
-var INITIAL_FACTURAS = [
-  {
-    idFactura: "FAC-2026-001",
-    fechaEmision: "2026-01-14",
-    idProveedor: "PROV-001",
-    nombreProveedor: "Harinas y Granos del Sur S.L.",
-    concepto: "Suministro harinas especiales lote Enero-1",
-    importe: 1110,
-    fechaVencimiento: "2026-02-14",
-    estado: "Pagada",
-    fechaPago: "2026-02-10",
-    baseImponible: 1110,
-    tiposIVA: "4%",
-    cuotaIVA: 44.4,
-    total: 1154.4,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Harina de fuerza 25 kg", cantidad: 40, unidad: "sacos", precioUnitario: 18.5, subtotal: 740 },
-      { nombreProducto: "Harina reposter\xEDa W200", cantidad: 20, unidad: "sacos", precioUnitario: 16, subtotal: 320 },
-      { nombreProducto: "Salvado de trigo", cantidad: 5, unidad: "sacos", precioUnitario: 10, subtotal: 50 }
-    ],
-    archivoNombre: "FAC-2026-001_HarinasDelSur.pdf",
-    sincronizadoSheets: true,
-    driveGuardado: true,
-    driveFolderName: "Harinas y Granos del Sur S.L.",
-    driveFileName: "FAC-2026-001 2026-01-15.pdf",
-    driveFileUrl: "https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs/preview"
-  },
-  {
-    idFactura: "FAC-2026-004",
-    fechaEmision: "2026-01-20",
-    idProveedor: "PROV-002",
-    nombreProveedor: "L\xE1cteos & Mantequillas Cantabria S.A.",
-    concepto: "Mantequilla artesanal y nata montada obrador",
-    importe: 1820,
-    fechaVencimiento: "2026-02-20",
-    estado: "Pagada",
-    fechaPago: "2026-02-18",
-    baseImponible: 1820,
-    tiposIVA: "10%",
-    cuotaIVA: 182,
-    total: 2002,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Mantequilla artesanal 82% 5kg", cantidad: 35, unidad: "bloques", precioUnitario: 32, subtotal: 1120 },
-      { nombreProducto: "Nata pura 35% 1L", cantidad: 200, unidad: "litros", precioUnitario: 3.5, subtotal: 700 }
-    ],
-    archivoNombre: "FAC-2026-004_LacteosCantabria.pdf",
-    sincronizadoSheets: true,
-    driveGuardado: true,
-    driveFolderName: "L\xE1cteos & Mantequillas Cantabria S.A.",
-    driveFileName: "FAC-2026-004 2026-01-20.pdf",
-    driveFileUrl: "https://drive.google.com/file/d/1u_b43yK5_wVbK7QY4L4zTjE9sZ5c8e2A/preview"
-  },
-  {
-    idFactura: "FAC-2026-009",
-    fechaEmision: "2026-01-31",
-    idProveedor: "PROV-006",
-    nombreProveedor: "Iberdrola Clientes S.A.U.",
-    concepto: "Factura el\xE9ctrica periodo Enero 2026 hornos y c\xE1maras",
-    importe: 2190,
-    fechaVencimiento: "2026-02-15",
-    estado: "Pagada",
-    fechaPago: "2026-02-12",
-    baseImponible: 2190,
-    tiposIVA: "21%",
-    cuotaIVA: 459.9,
-    total: 2649.9,
-    categoriaGasto: "Suministros y Energ\xEDa",
-    lineas: [
-      { nombreProducto: "Consumo energ\xEDa activa P1-P6", cantidad: 1, unidad: "periodo", precioUnitario: 1840, subtotal: 1840 },
-      { nombreProducto: "T\xE9rmino de potencia contratada", cantidad: 1, unidad: "mes", precioUnitario: 350, subtotal: 350 }
-    ],
-    archivoNombre: "FAC-2026-009_Iberdrola_Ene.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-015",
-    fechaEmision: "2026-02-12",
-    idProveedor: "PROV-001",
-    nombreProveedor: "Harinas y Granos del Sur S.L.",
-    concepto: "Suministro harinas quincena Febrero",
-    importe: 1150,
-    fechaVencimiento: "2026-03-12",
-    estado: "Pagada",
-    fechaPago: "2026-03-08",
-    baseImponible: 1150,
-    tiposIVA: "4%",
-    cuotaIVA: 46,
-    total: 1196,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Harina de fuerza 25 kg", cantidad: 40, unidad: "sacos", precioUnitario: 19.1, subtotal: 764 },
-      { nombreProducto: "Harina reposter\xEDa W200", cantidad: 22, unidad: "sacos", precioUnitario: 16.5, subtotal: 363 },
-      { nombreProducto: "Salvado de trigo", cantidad: 2, unidad: "sacos", precioUnitario: 11.5, subtotal: 23 }
-    ],
-    archivoNombre: "FAC-2026-015_HarinasSur_Feb.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-022",
-    fechaEmision: "2026-02-18",
-    idProveedor: "PROV-004",
-    nombreProveedor: "Envases & Packaging Gourmet S.L.",
-    concepto: "Cajas tarta kraft y bolsas para San Valent\xEDn y campa\xF1a invierno",
-    importe: 1720,
-    fechaVencimiento: "2026-03-20",
-    estado: "Pagada",
-    fechaPago: "2026-03-15",
-    baseImponible: 1720,
-    tiposIVA: "21%",
-    cuotaIVA: 361.2,
-    total: 2081.2,
-    categoriaGasto: "Envases y Embalajes",
-    lineas: [
-      { nombreProducto: "Cajas tarta kraft 25x25", cantidad: 2e3, unidad: "unidades", precioUnitario: 0.45, subtotal: 900 },
-      { nombreProducto: "Bolsas ventana microperforadas", cantidad: 1500, unidad: "unidades", precioUnitario: 0.38, subtotal: 570 },
-      { nombreProducto: "Papel antigrasa personalizado", cantidad: 10, unidad: "bobinas", precioUnitario: 25, subtotal: 250 }
-    ],
-    archivoNombre: "FAC-2026-022_Packaging_Feb.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-028",
-    fechaEmision: "2026-03-05",
-    idProveedor: "PROV-008",
-    nombreProveedor: "Molinos & Harinas del Ebro S.A.",
-    concepto: "Remesa de prueba harinas panificables y reposter\xEDa",
-    importe: 982,
-    fechaVencimiento: "2026-04-05",
-    estado: "Pagada",
-    fechaPago: "2026-03-28",
-    baseImponible: 982,
-    tiposIVA: "4%",
-    cuotaIVA: 39.28,
-    total: 1021.28,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Harina de fuerza 25 kg", cantidad: 35, unidad: "sacos", precioUnitario: 18.8, subtotal: 658 },
-      { nombreProducto: "Harina reposter\xEDa W200", cantidad: 20, unidad: "sacos", precioUnitario: 16.2, subtotal: 324 }
-    ],
-    archivoNombre: "FAC-2026-028_MolinosEbro_Mar.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-031",
-    fechaEmision: "2026-03-10",
-    idProveedor: "PROV-003",
-    nombreProveedor: "Dulces e Ingredientes del Valle S.L.",
-    concepto: "Lote coberturas de chocolate, cacao puro y az\xFAcares",
-    importe: 2680,
-    fechaVencimiento: "2026-04-10",
-    estado: "Pagada",
-    fechaPago: "2026-04-05",
-    baseImponible: 2680,
-    tiposIVA: "10%",
-    cuotaIVA: 268,
-    total: 2948,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Az\xFAcar blanquilla 25kg", cantidad: 30, unidad: "sacos", precioUnitario: 22, subtotal: 660 },
-      { nombreProducto: "Az\xFAcar glas micro 10kg", cantidad: 20, unidad: "sacos", precioUnitario: 17.5, subtotal: 350 },
-      { nombreProducto: "Cobertura chocolate 70%", cantidad: 100, unidad: "kg", precioUnitario: 16.7, subtotal: 1670 }
-    ],
-    archivoNombre: "FAC-2026-031_IngredientesValle_Mar.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-045",
-    fechaEmision: "2026-04-15",
-    idProveedor: "PROV-001",
-    nombreProveedor: "Harinas y Granos del Sur S.L.",
-    concepto: "Harinas panificables y masa madre seca Abril",
-    importe: 1220,
-    fechaVencimiento: "2026-05-15",
-    estado: "Pagada",
-    fechaPago: "2026-05-10",
-    baseImponible: 1220,
-    tiposIVA: "4%",
-    cuotaIVA: 48.8,
-    total: 1268.8,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Harina de fuerza 25 kg", cantidad: 40, unidad: "sacos", precioUnitario: 20, subtotal: 800 },
-      { nombreProducto: "Harina reposter\xEDa W200", cantidad: 24, unidad: "sacos", precioUnitario: 17.5, subtotal: 420 }
-    ],
-    archivoNombre: "FAC-2026-045_HarinasAbril.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-052",
-    fechaEmision: "2026-05-08",
-    idProveedor: "PROV-002",
-    nombreProveedor: "L\xE1cteos & Mantequillas Cantabria S.A.",
-    concepto: "Mantequilla 82% especial hojaldre y nata",
-    importe: 2135,
-    fechaVencimiento: "2026-06-08",
-    estado: "Pagada",
-    fechaPago: "2026-06-02",
-    baseImponible: 2135,
-    tiposIVA: "10%",
-    cuotaIVA: 213.5,
-    total: 2348.5,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Mantequilla artesanal 82% 5kg", cantidad: 35, unidad: "bloques", precioUnitario: 35, subtotal: 1225 },
-      { nombreProducto: "Nata pura 35% 1L", cantidad: 260, unidad: "litros", precioUnitario: 3.5, subtotal: 910 }
-    ],
-    archivoNombre: "FAC-2026-052_LacteosMayo.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-058",
-    fechaEmision: "2026-05-18",
-    idProveedor: "PROV-008",
-    nombreProveedor: "Molinos & Harinas del Ebro S.A.",
-    concepto: "Suministro harinas de fuerza y reposter\xEDa campa\xF1a primavera",
-    importe: 1112,
-    fechaVencimiento: "2026-06-18",
-    estado: "Pagada",
-    fechaPago: "2026-06-12",
-    baseImponible: 1112,
-    tiposIVA: "4%",
-    cuotaIVA: 44.48,
-    total: 1156.48,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Harina de fuerza 25 kg", cantidad: 40, unidad: "sacos", precioUnitario: 19.4, subtotal: 776 },
-      { nombreProducto: "Harina reposter\xEDa W200", cantidad: 20, unidad: "sacos", precioUnitario: 16.8, subtotal: 336 }
-    ],
-    archivoNombre: "FAC-2026-058_MolinosEbro_May.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-064",
-    fechaEmision: "2026-06-02",
-    idProveedor: "PROV-007",
-    nombreProveedor: "Fr\xEDo Express Log\xEDstica Alimentaria",
-    concepto: "Env\xEDos refrigerados pedidos bodas y eventos especiales Junio",
-    importe: 1480,
-    fechaVencimiento: "2026-07-02",
-    estado: "Vencida",
-    fechaPago: "Pendiente de confirmar",
-    baseImponible: 1480,
-    tiposIVA: "21%",
-    cuotaIVA: 310.8,
-    total: 1790.8,
-    categoriaGasto: "Log\xEDstica y Transporte",
-    lineas: [
-      { nombreProducto: "Ruta refrigerada provincial (12 servicios)", cantidad: 12, unidad: "rutas", precioUnitario: 95, subtotal: 1140 },
-      { nombreProducto: "Suplemento fin de semana y festivos", cantidad: 4, unidad: "servicios", precioUnitario: 85, subtotal: 340 }
-    ],
-    archivoNombre: "FAC-2026-064_FrioExpress_Jun.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-073",
-    fechaEmision: "2026-07-15",
-    idProveedor: "PROV-004",
-    nombreProveedor: "Envases & Packaging Gourmet S.L.",
-    concepto: "Nueva remesa de cajas pasteleras kraft con incremento papel",
-    importe: 2128,
-    fechaVencimiento: "2026-08-15",
-    estado: "Pagada",
-    fechaPago: "2026-08-10",
-    baseImponible: 2128,
-    tiposIVA: "21%",
-    cuotaIVA: 446.88,
-    total: 2574.88,
-    categoriaGasto: "Envases y Embalajes",
-    lineas: [
-      { nombreProducto: "Cajas tarta kraft 25x25", cantidad: 2500, unidad: "unidades", precioUnitario: 0.56, subtotal: 1400 },
-      { nombreProducto: "Bolsas ventana microperforadas", cantidad: 1600, unidad: "unidades", precioUnitario: 0.455, subtotal: 728 }
-    ],
-    archivoNombre: "FAC-2026-073_PackagingJulio.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-081",
-    fechaEmision: "2026-08-10",
-    idProveedor: "PROV-001",
-    nombreProveedor: "Harinas y Granos del Sur S.L.",
-    concepto: "Pedido intensivo campa\xF1a de verano harinas especiales",
-    importe: 1445,
-    fechaVencimiento: "2026-09-10",
-    estado: "Pendiente",
-    fechaPago: "Pendiente de confirmar",
-    baseImponible: 1445,
-    tiposIVA: "4%",
-    cuotaIVA: 57.8,
-    total: 1502.8,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Harina de fuerza 25 kg", cantidad: 50, unidad: "sacos", precioUnitario: 21.8, subtotal: 1090 },
-      { nombreProducto: "Harina reposter\xEDa W200", cantidad: 20, unidad: "sacos", precioUnitario: 17.75, subtotal: 355 }
-    ],
-    archivoNombre: "FAC-2026-081_HarinasAgosto.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-085",
-    fechaEmision: "2026-08-18",
-    idProveedor: "PROV-008",
-    nombreProveedor: "Molinos & Harinas del Ebro S.A.",
-    concepto: "Suministro harinas para fin de temporada estival",
-    importe: 1334.5,
-    fechaVencimiento: "2026-09-18",
-    estado: "Pendiente",
-    fechaPago: "Pendiente de confirmar",
-    baseImponible: 1334.5,
-    tiposIVA: "4%",
-    cuotaIVA: 53.38,
-    total: 1387.88,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Harina de fuerza 25 kg", cantidad: 45, unidad: "sacos", precioUnitario: 20.1, subtotal: 904.5 },
-      { nombreProducto: "Harina reposter\xEDa W200", cantidad: 25, unidad: "sacos", precioUnitario: 17.2, subtotal: 430 }
-    ],
-    archivoNombre: "FAC-2026-085_MolinosEbro_Ago.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-089",
-    fechaEmision: "2026-08-22",
-    idProveedor: "PROV-002",
-    nombreProveedor: "L\xE1cteos & Mantequillas Cantabria S.A.",
-    concepto: "Mantequillas gourmet de importaci\xF3n y l\xE1cteos",
-    importe: 2285,
-    fechaVencimiento: "2026-09-22",
-    estado: "Pendiente",
-    fechaPago: "Pendiente de confirmar",
-    baseImponible: 2285,
-    tiposIVA: "10%",
-    cuotaIVA: 228.5,
-    total: 2513.5,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Mantequilla artesanal 82% 5kg", cantidad: 40, unidad: "bloques", precioUnitario: 38.5, subtotal: 1540 },
-      { nombreProducto: "Nata pura 35% 1L", cantidad: 200, unidad: "litros", precioUnitario: 3.725, subtotal: 745 }
-    ],
-    archivoNombre: "FAC-2026-089_LacteosAgosto.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-092",
-    fechaEmision: "2026-08-28",
-    idProveedor: "PROV-005",
-    nombreProveedor: "Frutas Seleccionadas & Esencias Ib\xE9rica",
-    concepto: "Vainilla bourbon en rama y pur\xE9s de frutas para glaseados",
-    importe: 1560,
-    fechaVencimiento: "2026-09-28",
-    estado: "Pendiente",
-    fechaPago: "Pendiente de confirmar",
-    baseImponible: 1560,
-    tiposIVA: "10%",
-    cuotaIVA: 156,
-    total: 1716,
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Vainilla Bourbon Madagascar", cantidad: 2, unidad: "kg", precioUnitario: 390, subtotal: 780 },
-      { nombreProducto: "Pur\xE9 de frambuesa 1kg", cantidad: 30, unidad: "kg", precioUnitario: 16, subtotal: 480 },
-      { nombreProducto: "Nueces pecanas 5kg", cantidad: 5, unidad: "cajas", precioUnitario: 60, subtotal: 300 }
-    ],
-    archivoNombre: "FAC-2026-092_EsenciasAgosto.pdf",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-095",
-    fechaEmision: "2026-09-02",
-    idProveedor: "PROV-007",
-    nombreProveedor: "Cooperativa Ole\xEDcola Sierra de Cazorla",
-    concepto: "Aceite de oliva virgen extra cosecha temprana obrador (Tipo temporal 0%)",
-    importe: 980,
-    fechaVencimiento: "2026-10-02",
-    estado: "Pagada",
-    fechaPago: "2026-09-05",
-    baseImponible: 980,
-    tiposIVA: "0% (Temporal)",
-    cuotaIVA: 0,
-    total: 980,
-    regimenFiscal: "Tipos Temporales / Alimentos",
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "Aceite de Oliva Virgen Extra 5L garrafa", cantidad: 20, unidad: "garrafas", precioUnitario: 49, subtotal: 980 }
-    ],
-    notas: "Aplicaci\xF3n del tipo superreducido temporal al 0% para aceite de oliva (RDL 4/2024)",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-098",
-    fechaEmision: "2026-09-08",
-    idProveedor: "PROV-008",
-    nombreProveedor: "Pastas & Harinas Especiales Mediterr\xE1neo S.L.",
-    concepto: "Pastas alimenticias secas y s\xE9molas panificables (Tipo temporal 5%)",
-    importe: 650,
-    fechaVencimiento: "2026-10-08",
-    estado: "Pagada",
-    fechaPago: "2026-09-12",
-    baseImponible: 650,
-    tiposIVA: "5% (Temporal)",
-    cuotaIVA: 32.5,
-    total: 682.5,
-    regimenFiscal: "Tipos Temporales / Alimentos",
-    categoriaGasto: "Materias Primas",
-    lineas: [
-      { nombreProducto: "S\xE9mola de trigo duro especial 25kg", cantidad: 10, unidad: "sacos", precioUnitario: 35, subtotal: 350 },
-      { nombreProducto: "Pasta artesanal hojaldrada base", cantidad: 15, unidad: "cajas", precioUnitario: 20, subtotal: 300 }
-    ],
-    notas: "Tipo impositivo temporal reducido del 5% aplicable a pastas y derivados.",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-102",
-    fechaEmision: "2026-09-14",
-    idProveedor: "PROV-009",
-    nombreProveedor: "Envases & Embalajes del Atl\xE1ntico S.L. (Tenerife)",
-    concepto: "Cajas kraft microcanal personalizadas despacho Canarias (IGIC 7%)",
-    importe: 1420,
-    fechaVencimiento: "2026-10-14",
-    estado: "Pendiente",
-    fechaPago: "Pendiente de confirmar",
-    baseImponible: 1420,
-    tiposIVA: "IGIC 7%",
-    cuotaIVA: 99.4,
-    total: 1519.4,
-    regimenFiscal: "IGIC Canario",
-    tipoImpuestoNombre: "IGIC",
-    categoriaGasto: "Envases y Embalajes",
-    lineas: [
-      { nombreProducto: "Cajas pasteler\xEDa kraft 30x30 con ventana", cantidad: 1e3, unidad: "ud", precioUnitario: 0.95, subtotal: 950 },
-      { nombreProducto: "Bolsas take-away asa plana reforzadas", cantidad: 1e3, unidad: "ud", precioUnitario: 0.47, subtotal: 470 }
-    ],
-    notas: "Suministro con r\xE9gimen fiscal canario: Impuesto General Indirecto Canario (IGIC General 7%)",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-105",
-    fechaEmision: "2026-09-17",
-    idProveedor: "PROV-010",
-    nombreProveedor: "Distribuciones Gourmet & Utillaje S.L.",
-    concepto: "Utillaje de reposter\xEDa y bandejas inox (IVA 21% + R.E. 5,2%)",
-    importe: 1200,
-    fechaVencimiento: "2026-10-17",
-    estado: "Pendiente",
-    fechaPago: "Pendiente de confirmar",
-    baseImponible: 1200,
-    tiposIVA: "21% + 5.2% RE",
-    cuotaIVA: 252,
-    aplicaRecargoEquivalencia: true,
-    tipoRecargoEquivalencia: "5.2%",
-    cuotaRecargoEquivalencia: 62.4,
-    total: 1514.4,
-    regimenFiscal: "Recargo de Equivalencia",
-    categoriaGasto: "Mantenimiento y Maquinaria",
-    lineas: [
-      { nombreProducto: "Bandejas pasteleras inox 60x40", cantidad: 20, unidad: "ud", precioUnitario: 35, subtotal: 700 },
-      { nombreProducto: "Mangas pasteleras y boquillas profesionales", cantidad: 10, unidad: "packs", precioUnitario: 50, subtotal: 500 }
-    ],
-    notas: "Factura con desglose de IVA (21% = 252,00 \u20AC) y Recargo de Equivalencia para comercio minorista (5,2% = 62,40 \u20AC). Total: 1.514,40 \u20AC",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-108",
-    fechaEmision: "2026-09-20",
-    idProveedor: "PROV-011",
-    nombreProveedor: "Asesor\xEDa Fiscal & Laboral G\xF3mez & Asociados",
-    concepto: "Servicios de asesoramiento contable, fiscal y liquidaci\xF3n tributaria T3 2026",
-    importe: 650,
-    fechaVencimiento: "2026-10-20",
-    estado: "Pagada",
-    fechaPago: "2026-09-22",
-    baseImponible: 650,
-    tiposIVA: "21%",
-    cuotaIVA: 136.5,
-    aplicaRetencionIRPF: true,
-    tipoRetencionIRPF: "15% Profesional",
-    porcentajeIRPF: 15,
-    cuotaIRPF: 97.5,
-    conceptoRetencionIRPF: "PROFESIONAL",
-    total: 689,
-    regimenFiscal: "R\xE9gimen General Peninsular",
-    categoriaGasto: "Servicios y Gesti\xF3n",
-    archivoNombre: "factura_autonomo_irpf.pdf",
-    archivoBase64: "data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrp/Og0KPg==",
-    driveFileUrl: "https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs/preview",
-    driveGuardado: true,
-    lineas: [
-      { nombreProducto: "Honorarios asesor\xEDa tributaria y contable mensual", cantidad: 1, unidad: "mes", precioUnitario: 450, subtotal: 450 },
-      { nombreProducto: "Gesti\xF3n laboral y tramitaci\xF3n seguros sociales", cantidad: 1, unidad: "mes", precioUnitario: 200, subtotal: 200 }
-    ],
-    notas: "Retenci\xF3n de IRPF aplicada al 15% (97,50 \u20AC) para Modelo 111 de la AEAT. L\xEDquido: 689,00 \u20AC",
-    sincronizadoSheets: true
-  },
-  {
-    idFactura: "FAC-2026-112",
-    fechaEmision: "2026-09-23",
-    idProveedor: "PROV-012",
-    nombreProveedor: "Inmobiliaria & Locales Comerciales Centro S.L.",
-    concepto: "Alquiler mensual obrador principal y almac\xE9n log\xEDstico Septiembre 2026",
-    importe: 1800,
-    fechaVencimiento: "2026-10-05",
-    estado: "Pendiente",
-    fechaPago: "Pendiente de confirmar",
-    baseImponible: 1800,
-    tiposIVA: "21%",
-    cuotaIVA: 378,
-    aplicaRetencionIRPF: true,
-    tipoRetencionIRPF: "19% Arrendamiento",
-    porcentajeIRPF: 19,
-    cuotaIRPF: 342,
-    conceptoRetencionIRPF: "ARRENDAMIENTO",
-    total: 1836,
-    regimenFiscal: "R\xE9gimen General Peninsular",
-    categoriaGasto: "Suministros y Energ\xEDa",
-    archivoNombre: "factura_ejemplo.pdf",
-    archivoBase64: "data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrp/Og0KPg==",
-    driveFileUrl: "https://drive.google.com/file/d/1u_b43yK5_wVbK7QY4L4zTjE9sZ5c8e2A/preview",
-    driveGuardado: true,
-    lineas: [
-      { nombreProducto: "Renta arrendamiento nave obrador central (350m2)", cantidad: 1, unidad: "mes", precioUnitario: 1500, subtotal: 1500 },
-      { nombreProducto: "Cuota garaje y muelle de carga refrigerado", cantidad: 1, unidad: "mes", precioUnitario: 300, subtotal: 300 }
-    ],
-    notas: "Retenci\xF3n sobre arrendamiento de inmueble urbano al 19% (342,00 \u20AC) para Modelo 115 AEAT. L\xEDquido a pagar: 1.836,00 \u20AC",
-    sincronizadoSheets: true
-  }
-];
-var INITIAL_ALERTAS = [
-  {
-    id: "ALT-001",
-    tipo: "SUBIDA DE PRECIO",
-    nivel: "critica",
-    titulo: "Subida acusada en Harina de fuerza 25 kg (+17.8%)",
-    descripcion: "Harina de fuerza 25 kg ha aumentado de 18.50 \u20AC a 21.80 \u20AC (+17.8%) suministrada por Harinas y Granos del Sur S.L.",
-    fecha: "2026-08-10",
-    estado: "activa",
-    datosRelacionados: {
-      proveedor: "Harinas y Granos del Sur S.L.",
-      producto: "Harina de fuerza 25 kg",
-      precioAnterior: 18.5,
-      precioNuevo: 21.8,
-      variacionPorcentaje: 17.84
-    }
-  },
-  {
-    id: "ALT-002",
-    tipo: "SUBIDA DE PRECIO",
-    nivel: "critica",
-    titulo: "Subida pronunciada en Mantequilla artesanal 82% 5kg (+20.3%)",
-    descripcion: "Mantequilla artesanal 82% 5kg ha subido de 32.00 \u20AC a 38.50 \u20AC (+20.3%) en las \xFAltimas 3 remesas de L\xE1cteos & Mantequillas Cantabria.",
-    fecha: "2026-08-22",
-    estado: "activa",
-    datosRelacionados: {
-      proveedor: "L\xE1cteos & Mantequillas Cantabria S.A.",
-      producto: "Mantequilla artesanal 82% 5kg",
-      precioAnterior: 32,
-      precioNuevo: 38.5,
-      variacionPorcentaje: 20.31
-    }
-  },
-  {
-    id: "ALT-003",
-    tipo: "FACTURA VENCIDA",
-    nivel: "alta",
-    titulo: "Factura vencida no conciliada: FAC-2026-064 (1.790,80 \u20AC)",
-    descripcion: "La factura de Fr\xEDo Express Log\xEDstica Alimentaria venci\xF3 el 02/07/2026 y figura en estado Vencida pendiente de pago.",
-    fecha: "2026-07-03",
-    estado: "activa",
-    datosRelacionados: {
-      idFactura: "FAC-2026-064",
-      proveedor: "Fr\xEDo Express Log\xEDstica Alimentaria",
-      importe: 1790.8
-    }
-  },
-  {
-    id: "ALT-004",
-    tipo: "CONCENTRACI\xD3N DE PROVEEDOR",
-    nivel: "alta",
-    titulo: "Alta concentraci\xF3n en materias primas: Harinas del Sur (41.8%)",
-    descripcion: "Harinas y Granos del Sur representa el 41.8% del gasto total acumulado en la categor\xEDa de Materias Primas del negocio.",
-    fecha: "2026-08-28",
-    estado: "activa",
-    datosRelacionados: {
-      proveedor: "Harinas y Granos del Sur S.L.",
-      variacionPorcentaje: 41.8
-    }
-  },
-  {
-    id: "ALT-005",
-    tipo: "SUBIDA DE PRECIO",
-    nivel: "media",
-    titulo: "Aumento en packaging de cart\xF3n kraft (+24.4%)",
-    descripcion: "Cajas tarta kraft 25x25 subieron de 0.45 \u20AC a 0.56 \u20AC unitarios en Envases & Packaging Gourmet.",
-    fecha: "2026-07-15",
-    estado: "activa",
-    datosRelacionados: {
-      proveedor: "Envases & Packaging Gourmet S.L.",
-      producto: "Cajas tarta kraft 25x25",
-      precioAnterior: 0.45,
-      precioNuevo: 0.56,
-      variacionPorcentaje: 24.44
-    }
-  },
-  {
-    id: "ALT-006",
-    tipo: "GASTO INUSUAL",
-    nivel: "informativa",
-    titulo: "Incremento estacional en climatizaci\xF3n y hornos (+18%)",
-    descripcion: "El consumo energ\xE9tico en obrador aument\xF3 en julio y agosto debido al uso intensivo de c\xE1maras frigor\xEDficas por altas temperaturas.",
-    fecha: "2026-08-01",
-    estado: "activa",
-    datosRelacionados: {
-      proveedor: "Iberdrola Clientes S.A.U.",
-      importe: 2649.9
-    }
-  }
-];
+var INITIAL_PROVEEDORES = [];
+var INITIAL_FACTURAS = [];
+var INITIAL_ALERTAS = [];
+var INITIAL_ANALISIS_EJECUTIVO = {
+  id: "ANALISIS-ACTUAL",
+  fechaGeneracion: (/* @__PURE__ */ new Date()).toISOString(),
+  estadoGeneral: "No hay facturas registradas todav\xEDa. La plataforma est\xE1 lista para procesar tus documentos y tickets para generar un an\xE1lisis financiero personalizado.",
+  principalesGastos: [
+    "A\xFAn no hay categor\xEDas de gasto con datos registrados."
+  ],
+  cambiosImportantes: [
+    "El historial de compras se actualizar\xE1 conforme subas tus primeras facturas."
+  ],
+  alertas: [
+    "No existen alertas activas en el sistema."
+  ],
+  oportunidadesAhorro: [
+    "Registra tus facturas para que la IA identifique oportunidades de ahorro y optimizaci\xF3n de costes."
+  ],
+  tresAcciones: [],
+  prioridadSemana: "Sube o escanea tu primera factura de compra para iniciar el control de costes y liquidaci\xF3n fiscal."
+};
 
 // src/utils/sqlGenerator.ts
 function escapeSql(val) {
@@ -1290,7 +587,6 @@ function generarScriptSqlCompleto(options = {}, provsArg = []) {
     `-- ------------------------------------------------------------`,
     `-- 5. Estructura de la tabla: lineas_factura`,
     `-- ------------------------------------------------------------`,
-
     `CREATE TABLE IF NOT EXISTS \`lineas_factura\` (`,
     `  \`id\` INT PRIMARY KEY AUTO_INCREMENT,`,
     `  \`id_factura\` VARCHAR(100) NOT NULL,`,
@@ -1500,14 +796,97 @@ function generarScriptSqlCompleto(options = {}, provsArg = []) {
   return lines.join("\n");
 }
 
+// src/utils/categoriasGasto.ts
+var DEFAULT_CATEGORIAS_GASTO = [
+  {
+    id: "materias-primas",
+    nombre: "Materias Primas",
+    descripcion: "Harinas, l\xE1cteos, az\xFAcares, ingredientes base y consumibles directos de producci\xF3n.",
+    color: "#f43f5e",
+    // coral / rose
+    esPredeterminada: true
+  },
+  {
+    id: "suministros-y-energia",
+    nombre: "Suministros y Energ\xEDa",
+    descripcion: "Electricidad, gas, agua, telecomunicaciones, internet y suministros energ\xE9ticos operativos.",
+    color: "#0ea5e9",
+    // sky blue
+    esPredeterminada: true
+  },
+  {
+    id: "envases-y-embalajes",
+    nombre: "Envases y Embalajes",
+    descripcion: "Cajas kraft, bobinas, bandejas, film, bolsas, etiquetas y material de empaquetado.",
+    color: "#f59e0b",
+    // amber
+    esPredeterminada: true
+  },
+  {
+    id: "logistica-y-transporte",
+    nombre: "Log\xEDstica y Transporte",
+    descripcion: "Portes, transporte frigor\xEDfico/refrigerado, env\xEDos urgentes, fletes y servicios de reparto.",
+    color: "#10b981",
+    // emerald
+    esPredeterminada: true
+  },
+  {
+    id: "mantenimiento-y-maquinaria",
+    nombre: "Mantenimiento y Maquinaria",
+    descripcion: "Reparaciones t\xE9cnicas, revisiones preventivas de hornos, climatizaci\xF3n, recambios y herramientas.",
+    color: "#8b5cf6",
+    // purple
+    esPredeterminada: true
+  },
+  {
+    id: "servicios-y-gestion",
+    nombre: "Servicios y Gesti\xF3n",
+    descripcion: "Asesor\xEDa contable, fiscal y laboral, licencias de software, seguros y servicios profesionales.",
+    color: "#ec4899",
+    // pink
+    esPredeterminada: true
+  }
+];
+var cacheCategoriasGasto = [...DEFAULT_CATEGORIAS_GASTO];
+
 // src/db.ts
 dotenv.config();
+function getDbConfigFilePath() {
+  const dir = path.join(process.cwd(), "tmp");
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch {
+    }
+  }
+  return path.join(dir, "mysql_config.json");
+}
+function loadPersistedDbConfig() {
+  try {
+    const file = getDbConfigFilePath();
+    if (fs.existsSync(file)) {
+      const data = JSON.parse(fs.readFileSync(file, "utf-8"));
+      return data || {};
+    }
+  } catch {
+  }
+  return {};
+}
+function persistDbConfig(cfg) {
+  try {
+    const file = getDbConfigFilePath();
+    fs.writeFileSync(file, JSON.stringify(cfg, null, 2), "utf-8");
+  } catch (e) {
+    console.warn("No se pudo guardar la configuraci\xF3n de DB en disco:", e);
+  }
+}
+var persistedDbConfig = loadPersistedDbConfig();
 var activeConfig = {
-  host: process.env.DB_HOST || "127.0.0.1",
-  port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "finance_ai_db"
+  host: persistedDbConfig.host || process.env.DB_HOST || "127.0.0.1",
+  port: Number(persistedDbConfig.port || process.env.DB_PORT) || 3306,
+  user: persistedDbConfig.user || process.env.DB_USER || "root",
+  password: persistedDbConfig.password !== void 0 ? persistedDbConfig.password : process.env.DB_PASSWORD || "",
+  database: persistedDbConfig.database || process.env.DB_NAME || "finance_ai_db"
 };
 var dbPool = null;
 var isDbConnected = false;
@@ -1521,6 +900,7 @@ function updateDbConfig(newConfig) {
     ...newConfig,
     port: Number(newConfig.port || activeConfig.port || 3306)
   };
+  persistDbConfig(activeConfig);
   if (dbPool) {
     try {
       dbPool.end().catch(() => {
@@ -1785,6 +1165,9 @@ async function createTablesOnConnection(conn) {
       id VARCHAR(64) PRIMARY KEY,
       fecha_generacion DATETIME NOT NULL,
       estado_general TEXT NOT NULL,
+      principales_gastos LONGTEXT,
+      cambios_importantes LONGTEXT,
+      alertas LONGTEXT,
       tres_acciones LONGTEXT NOT NULL,
       oportunidades_ahorro LONGTEXT,
       prioridad_semana TEXT,
@@ -1792,6 +1175,18 @@ async function createTablesOnConnection(conn) {
       creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
+  try {
+    await conn.query("ALTER TABLE analisis_financieros_ia ADD COLUMN principales_gastos LONGTEXT");
+  } catch {
+  }
+  try {
+    await conn.query("ALTER TABLE analisis_financieros_ia ADD COLUMN cambios_importantes LONGTEXT");
+  } catch {
+  }
+  try {
+    await conn.query("ALTER TABLE analisis_financieros_ia ADD COLUMN alertas LONGTEXT");
+  } catch {
+  }
   await conn.query(`
     CREATE TABLE IF NOT EXISTS historial_chat_ia (
       id VARCHAR(64) PRIMARY KEY,
@@ -1831,6 +1226,195 @@ async function createTablesOnConnection(conn) {
       actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
+  try {
+    await conn.query("ALTER TABLE integraciones_google ADD COLUMN is_sheet_data_active BOOLEAN DEFAULT FALSE");
+  } catch {
+  }
+  try {
+    const [existingGoogle] = await conn.query("SELECT id, endpoint_url, drive_folder_id FROM integraciones_google WHERE id = 1 LIMIT 1");
+    const defaultEndpoint = process.env.GOOGLE_DRIVE_ENDPOINT_URL || process.env.GOOGLE_SHEETS_ENDPOINT_URL || "https://script.google.com/macros/s/AKfycby_om7y_NBaPo5MXc-QyzGKgOIjqsg7graHUXWC_4nelkzXSTmu2HuV3iqRvbwW4a4SVQ/exec";
+    const defaultDriveFolder = process.env.GOOGLE_DRIVE_FOLDER_ID || "1Uwm3ROGnrn3T7fF2IvbkblJQAo2VZ0mK";
+    const defaultSheetId = process.env.GOOGLE_SHEETS_ID || "";
+    if (!existingGoogle || existingGoogle.length === 0) {
+      await conn.query(`
+        INSERT INTO integraciones_google (id, sheet_id, endpoint_url, drive_folder_id, auto_sync, is_sheet_data_active)
+        VALUES (1, ?, ?, ?, 1, 0)
+      `, [defaultSheetId, defaultEndpoint, defaultDriveFolder]);
+    } else if (!existingGoogle[0].endpoint_url && !existingGoogle[0].drive_folder_id) {
+      await conn.query(`
+        UPDATE integraciones_google
+        SET endpoint_url = ?, drive_folder_id = ?
+        WHERE id = 1
+      `, [defaultEndpoint, defaultDriveFolder]);
+    }
+  } catch (seedErr) {
+    console.warn("Aviso al sembrar integraciones_google en MySQL:", seedErr);
+  }
+  await seedInitialDataIfEmpty(conn);
+}
+async function seedInitialDataIfEmpty(conn) {
+  try {
+    const [rows] = await conn.query("SELECT COUNT(*) as count FROM facturas");
+    const count = rows && rows[0] ? Number(rows[0].count) : 0;
+    if (count === 0) {
+      const [negRows] = await conn.query("SELECT COUNT(*) as cnt FROM datos_negocio");
+      if (!negRows || Number(negRows[0].cnt) === 0) {
+        await conn.query(`
+          INSERT INTO datos_negocio (id, nombre, nif, direccion, actividad, sector, contexto_operativo, email, telefono)
+          VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          DEFAULT_DATOS_NEGOCIO.nombre,
+          DEFAULT_DATOS_NEGOCIO.nif,
+          DEFAULT_DATOS_NEGOCIO.direccion,
+          DEFAULT_DATOS_NEGOCIO.actividad,
+          DEFAULT_DATOS_NEGOCIO.sector,
+          DEFAULT_DATOS_NEGOCIO.contextoOperativo,
+          DEFAULT_DATOS_NEGOCIO.email,
+          DEFAULT_DATOS_NEGOCIO.telefono
+        ]);
+      }
+      for (const cat of DEFAULT_CATEGORIAS_GASTO) {
+        await conn.query(`
+          INSERT IGNORE INTO categorias_gasto (id, nombre, descripcion, color, es_predeterminada)
+          VALUES (?, ?, ?, ?, ?)
+        `, [cat.id, cat.nombre, cat.descripcion || "", cat.color || "#0ea5e9", cat.esPredeterminada ? 1 : 0]);
+      }
+      for (const f of INITIAL_FACTURAS) {
+        const idFactura = String(f.idFactura).trim();
+        const idProveedor = String(f.idProveedor || "PROV-GEN").trim();
+        const nombreProveedor = String(f.nombreProveedor || "Proveedor General").trim();
+        const fechaEmisionSql = sanitizeSqlDate2(f.fechaEmision) || (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+        const fechaVencimientoSql = sanitizeSqlDate2(f.fechaVencimiento) || fechaEmisionSql;
+        const total = Number(f.total || 0);
+        const baseImponible = Number(f.baseImponible || f.importe || 0);
+        const importe = Number(f.importe || baseImponible || 0);
+        const cuotaIVA = Number(f.cuotaIVA || 0);
+        const cuotaRecargo = Number(f.cuotaRecargoEquivalencia || 0);
+        const cuotaIRPF = Number(f.cuotaIRPF || 0);
+        const porcentajeIRPF = Number(f.porcentajeIRPF || 0);
+        await conn.query(`
+          INSERT INTO proveedores (id_proveedor, nombre_proveedor, importe_mensual)
+          VALUES (?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            nombre_proveedor = VALUES(nombre_proveedor),
+            importe_mensual = importe_mensual + VALUES(importe_mensual)
+        `, [idProveedor, nombreProveedor, total]);
+        await conn.query(`
+          INSERT IGNORE INTO facturas (
+            id_factura, fecha_emision, id_proveedor, nombre_proveedor, concepto,
+            importe, fecha_vencimiento, estado, fecha_pago, base_imponible,
+            tipos_iva, cuota_iva, regimen_fiscal, aplica_recargo_equivalencia,
+            tipo_recargo_equivalencia, cuota_recargo_equivalencia, aplica_retencion_irpf,
+            tipo_retencion_irpf, porcentaje_irpf, cuota_irpf, concepto_retencion_irpf,
+            total, categoria_gasto, categoria_gasto_justificacion, notas, archivo_nombre,
+            archivo_ruta, sincronizado_sheets
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `, [
+          idFactura,
+          fechaEmisionSql,
+          idProveedor,
+          nombreProveedor,
+          f.concepto || "Factura registrada",
+          importe,
+          fechaVencimientoSql,
+          f.estado || "Pendiente",
+          f.fechaPago || "Pendiente de confirmar",
+          baseImponible,
+          f.tiposIVA || "21%",
+          cuotaIVA,
+          f.regimenFiscal || "R\xE9gimen General Peninsular",
+          Boolean(f.aplicaRecargoEquivalencia) ? 1 : 0,
+          f.tipoRecargoEquivalencia || "",
+          cuotaRecargo,
+          Boolean(f.aplicaRetencionIRPF) ? 1 : 0,
+          f.tipoRetencionIRPF || "",
+          porcentajeIRPF,
+          cuotaIRPF,
+          f.conceptoRetencionIRPF || "",
+          total,
+          f.categoriaGasto || "Materias Primas",
+          f.categoriaGastoJustificacion || "",
+          f.notas || "",
+          f.archivoNombre || `${idFactura}.pdf`,
+          f.driveFileUrl || f.archivoRuta || f.archivo_ruta || null
+        ]);
+        const lineas = Array.isArray(f.lineas) && f.lineas.length > 0 ? f.lineas : [{
+          nombreProducto: f.concepto || "Producto / Servicio",
+          cantidad: 1,
+          unidad: "ud",
+          precioUnitario: importe,
+          subtotal: importe
+        }];
+        const lineasData = lineas.map((l) => [
+          idFactura,
+          String(l.nombreProducto || "Art\xEDculo").trim(),
+          Number(l.cantidad || 1),
+          String(l.unidad || "ud").trim(),
+          Number(l.precioUnitario || 0),
+          Number(l.subtotal || Number(l.cantidad || 1) * Number(l.precioUnitario || 0))
+        ]);
+        await conn.query(
+          `INSERT INTO lineas_factura (id_factura, nombre_producto, cantidad, unidad, precio_unitario, subtotal) VALUES ?`,
+          [lineasData]
+        );
+        for (const l of lineas) {
+          const precio = Number(l.precioUnitario || 0);
+          const nomProd = String(l.nombreProducto || f.concepto || "Art\xEDculo").trim();
+          if (precio > 0 && nomProd) {
+            await conn.query(`
+              INSERT INTO historico_precios (nombre_producto, id_proveedor, nombre_proveedor, id_factura, fecha, precio_unitario, unidad)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [
+              nomProd,
+              idProveedor,
+              nombreProveedor,
+              idFactura,
+              fechaEmisionSql,
+              precio,
+              String(l.unidad || "ud").trim()
+            ]);
+          }
+        }
+      }
+      for (const a of INITIAL_ALERTAS) {
+        await conn.query(`
+          INSERT IGNORE INTO alertas (id, tipo, nivel, titulo, descripcion, fecha, estado, datos_relacionados)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          a.id,
+          a.tipo,
+          a.nivel,
+          a.titulo,
+          a.descripcion,
+          a.fecha ? new Date(a.fecha) : /* @__PURE__ */ new Date(),
+          a.estado || "activa",
+          a.datosRelacionados ? JSON.stringify(a.datosRelacionados) : null
+        ]);
+      }
+      const [paramRows] = await conn.query("SELECT COUNT(*) as cnt FROM configuracion_parametros");
+      if (!paramRows || Number(paramRows[0].cnt) === 0) {
+        await conn.query(`
+          INSERT INTO configuracion_parametros (
+            id, umbral_subida_moderada_pct, umbral_subida_critica_pct,
+            umbral_concentracion_proveedor_pct, notificar_concentracion_proveedor,
+            dias_anticipacion_vencimiento, notificar_facturas_vencidas,
+            regimen_fiscal_predeterminado, tipo_retencion_predeterminada
+          ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          DEFAULT_PARAMETROS_SISTEMA.umbralSubidaModeradaPct,
+          DEFAULT_PARAMETROS_SISTEMA.umbralSubidaCriticaPct,
+          DEFAULT_PARAMETROS_SISTEMA.umbralConcentracionProveedorPct,
+          DEFAULT_PARAMETROS_SISTEMA.notificarConcentracionProveedor ? 1 : 0,
+          DEFAULT_PARAMETROS_SISTEMA.diasAnticipacionVencimiento,
+          DEFAULT_PARAMETROS_SISTEMA.notificarFacturasVencidas ? 1 : 0,
+          DEFAULT_PARAMETROS_SISTEMA.regimenFiscalPredeterminado || "IVA_PENINSULAR",
+          DEFAULT_PARAMETROS_SISTEMA.tipoIrpfRetencionPredeterminado || "15%"
+        ]);
+      }
+    }
+  } catch (seedErr) {
+    console.warn("Aviso en siembra inicial de MySQL:", seedErr);
+  }
 }
 async function testDbConnection() {
   const isVercel = !!(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NOW_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
@@ -2043,7 +1627,7 @@ async function guardarFacturasEnMySQL(facturas) {
           f.categoriaGastoJustificacion || "",
           f.notas || "",
           f.archivoNombre || `${idFactura}.pdf`,
-          f.driveFileUrl || null
+          f.driveFileUrl || f.archivoRuta || f.archivo_ruta || null
         ]);
         const lineasParaGuardar = Array.isArray(f.lineas) && f.lineas.length > 0 ? f.lineas : [{
           nombreProducto: f.concepto || "Producto / Servicio General",
@@ -2100,6 +1684,9 @@ async function guardarFacturasEnMySQL(facturas) {
   }
 }
 async function obtenerFacturasDeMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -2132,7 +1719,9 @@ async function obtenerFacturasDeMySQL() {
         categoria_gasto_justificacion AS categoriaGastoJustificacion,
         notas,
         archivo_nombre AS archivoNombre,
-        archivo_ruta AS driveFileUrl
+        archivo_ruta AS driveFileUrl,
+        archivo_ruta AS archivoRuta,
+        archivo_ruta AS archivo_ruta
       FROM facturas
       ORDER BY fecha_emision DESC
     `);
@@ -2150,8 +1739,7 @@ async function obtenerFacturasDeMySQL() {
         ORDER BY id ASC
       `);
       lineasRows = lRows || [];
-    } catch (err) {
-      console.warn("Aviso al consultar lineas_factura:", err?.message);
+    } catch {
     }
     conn.release();
     const lineasPorFactura = {};
@@ -2179,7 +1767,7 @@ async function obtenerFacturasDeMySQL() {
       aplicaRecargoEquivalencia: Boolean(f.aplicaRecargoEquivalencia),
       aplicaRetencionIRPF: Boolean(f.aplicaRetencionIRPF),
       sincronizadoSheets: true,
-      driveGuardado: Boolean(f.driveFileUrl && String(f.driveFileUrl).startsWith("http")),
+      driveGuardado: Boolean((f.driveFileUrl || f.archivoRuta || f.archivo_ruta) && String(f.driveFileUrl || f.archivoRuta || f.archivo_ruta).startsWith("http")),
       lineas: lineasPorFactura[f.idFactura] || []
     }));
   } catch (err) {
@@ -2188,6 +1776,9 @@ async function obtenerFacturasDeMySQL() {
   }
 }
 async function eliminarFacturaDeMySQL(idFactura) {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) {
     return { ok: false, affectedRows: 0, error: "MySQL no est\xE1 disponible" };
@@ -2199,6 +1790,10 @@ async function eliminarFacturaDeMySQL(idFactura) {
       await conn.beginTransaction();
       await conn.query("DELETE FROM lineas_factura WHERE id_factura = ?", [normalizedId]);
       const [res] = await conn.query("DELETE FROM facturas WHERE id_factura = ?", [normalizedId]);
+      await conn.query("DELETE FROM alertas WHERE id LIKE ? OR id LIKE ?", [
+        `ALT-VENC-${normalizedId}%`,
+        `ALT-PRICE-${normalizedId}%`
+      ]);
       await conn.commit();
       conn.release();
       return { ok: true, affectedRows: res?.affectedRows || 0 };
@@ -2212,6 +1807,9 @@ async function eliminarFacturaDeMySQL(idFactura) {
   }
 }
 async function actualizarEstadoFacturaEnMySQL(idFactura, nuevoEstado, fechaPago) {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) {
     return { ok: false, error: "MySQL no est\xE1 disponible" };
@@ -2265,6 +1863,9 @@ async function guardarDatosNegocioEnMySQL(datos) {
   }
 }
 async function obtenerDatosNegocioDeMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return null;
   try {
@@ -2334,6 +1935,9 @@ async function guardarCategoriasEnMySQL(categorias) {
   }
 }
 async function obtenerCategoriasDeMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -2408,6 +2012,9 @@ async function guardarProveedoresEnMySQL(proveedores) {
   }
 }
 async function obtenerProveedoresDeMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -2437,6 +2044,9 @@ async function obtenerProveedoresDeMySQL() {
   }
 }
 async function obtenerHistoricoPreciosDeMySQL(producto) {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -2510,6 +2120,9 @@ async function guardarParametrosSistemaEnMySQL(params) {
   }
 }
 async function obtenerParametrosSistemaDeMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return null;
   try {
@@ -2546,12 +2159,15 @@ async function guardarAnalisisEjecutivoEnMySQL(analisis) {
     const fecha = analisis.fechaGeneracion ? new Date(analisis.fechaGeneracion) : /* @__PURE__ */ new Date();
     await conn.query(`
       INSERT INTO analisis_financieros_ia (
-        id, fecha_generacion, estado_general, tres_acciones,
+        id, fecha_generacion, estado_general, principales_gastos, cambios_importantes, alertas, tres_acciones,
         oportunidades_ahorro, prioridad_semana, total_gasto_analizado
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         fecha_generacion = VALUES(fecha_generacion),
         estado_general = VALUES(estado_general),
+        principales_gastos = VALUES(principales_gastos),
+        cambios_importantes = VALUES(cambios_importantes),
+        alertas = VALUES(alertas),
         tres_acciones = VALUES(tres_acciones),
         oportunidades_ahorro = VALUES(oportunidades_ahorro),
         prioridad_semana = VALUES(prioridad_semana),
@@ -2560,6 +2176,9 @@ async function guardarAnalisisEjecutivoEnMySQL(analisis) {
       id,
       fecha,
       analisis.estadoGeneral,
+      JSON.stringify(analisis.principalesGastos || []),
+      JSON.stringify(analisis.cambiosImportantes || []),
+      JSON.stringify(analisis.alertas || []),
       JSON.stringify(analisis.tresAcciones || []),
       JSON.stringify(analisis.oportunidadesAhorro || []),
       analisis.prioridadSemana || "",
@@ -2572,6 +2191,9 @@ async function guardarAnalisisEjecutivoEnMySQL(analisis) {
   }
 }
 async function obtenerAnalisisEjecutivoDeMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return null;
   try {
@@ -2584,6 +2206,9 @@ async function obtenerAnalisisEjecutivoDeMySQL() {
         id: r.id,
         fechaGeneracion: r.fecha_generacion ? new Date(r.fecha_generacion).toISOString() : (/* @__PURE__ */ new Date()).toISOString(),
         estadoGeneral: r.estado_general,
+        principalesGastos: r.principales_gastos ? JSON.parse(r.principales_gastos) : ["Aprovisionamientos y materias primas", "Suministros energ\xE9ticos", "Log\xEDstica y servicios operacionales"],
+        cambiosImportantes: r.cambios_importantes ? JSON.parse(r.cambios_importantes) : ["Revisi\xF3n peri\xF3dica de precios de proveedores clave."],
+        alertas: r.alertas ? JSON.parse(r.alertas) : ["Monitoreo de vencimientos y concentraci\xF3n de compras."],
         tresAcciones: r.tres_acciones ? JSON.parse(r.tres_acciones) : [],
         oportunidadesAhorro: r.oportunidades_ahorro ? JSON.parse(r.oportunidades_ahorro) : [],
         prioridadSemana: r.prioridad_semana || "",
@@ -2621,6 +2246,9 @@ async function guardarMensajeChatEnMySQL(msg) {
   }
 }
 async function obtenerHistorialChatDeMySQL(limit = 50) {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -2642,6 +2270,9 @@ async function obtenerHistorialChatDeMySQL(limit = 50) {
   }
 }
 async function limpiarHistorialChatEnMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return { ok: false };
   try {
@@ -2691,6 +2322,9 @@ async function guardarDeclaracionAeatEnMySQL(d) {
   }
 }
 async function obtenerDeclaracionesAeatDeMySQL(modelo, ejercicio) {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -2757,6 +2391,9 @@ async function guardarConfiguracionGoogleEnMySQL(config) {
   }
 }
 async function obtenerConfiguracionGoogleDeMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return null;
   try {
@@ -2767,8 +2404,8 @@ async function obtenerConfiguracionGoogleDeMySQL() {
       const r = rows[0];
       return {
         sheetId: r.sheet_id || "",
-        endpointUrl: r.endpoint_url || "",
-        driveFolderId: r.drive_folder_id || "",
+        endpointUrl: r.endpoint_url || process.env.GOOGLE_DRIVE_ENDPOINT_URL || process.env.GOOGLE_SHEETS_ENDPOINT_URL || "",
+        driveFolderId: r.drive_folder_id || process.env.GOOGLE_DRIVE_FOLDER_ID || "",
         autoSync: Boolean(r.auto_sync),
         isSheetDataActive: Boolean(r.is_sheet_data_active),
         ultimaSincronizacion: r.ultima_sincronizacion
@@ -2927,6 +2564,9 @@ async function guardarAlertasEnMySQL(alertas) {
   }
 }
 async function obtenerAlertasDeMySQL() {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) return [];
   try {
@@ -2965,6 +2605,9 @@ async function obtenerAlertasDeMySQL() {
   }
 }
 async function actualizarEstadoAlertaEnMySQL(idAlerta, nuevoEstado, alertaCompleta) {
+  if (!isDbConnected) {
+    await ensureDatabaseAndTables();
+  }
   const pool = getDbPool();
   if (!pool || !isDbConnected) {
     return { ok: false, error: "MySQL no est\xE1 disponible" };
@@ -3016,7 +2659,7 @@ function generarScriptSqlCompleto2(facturas, proveedores = [], datosNegocio, cat
 // server.ts
 dotenv2.config();
 var app = express();
-var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
+var PORT = 3e3;
 app.use((req, _res, next) => {
   try {
     const rawUrl = req.url || "";
@@ -3072,21 +2715,7 @@ function getGeminiClient() {
     }
   });
 }
-var serverFacturas = [];
-var serverProveedores = [];
-var SHEETS_CONFIG = {
-  sheetId: process.env.GOOGLE_SHEETS_ID || "",
-  endpointUrl: process.env.GOOGLE_SHEETS_ENDPOINT_URL || ""
-};
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    geminiConfigured: !!getGeminiApiKey(),
-    sheetsConfigured: !!SHEETS_CONFIG.sheetId || !!SHEETS_CONFIG.endpointUrl,
-    timestamp: (/* @__PURE__ */ new Date()).toISOString()
-  });
-});
-var storedCategoriasGasto = [
+var DEFAULT_CATEGORIAS_GASTO_SERVER = [
   {
     id: "materias-primas",
     nombre: "Materias Primas",
@@ -3130,32 +2759,90 @@ var storedCategoriasGasto = [
     esPredeterminada: true
   }
 ];
-var serverDatosNegocio = {
-  nombre: "Finance AI \u2014 Obrador & Caf\xE9",
-  nif: "B-87654321",
-  direccion: "Calle Mayor 45, Planta Baja",
-  actividad: "Hosteler\xEDa, Obrador y Panader\xEDa Artesanal",
-  sector: "Alimentaci\xF3n y Bebidas",
-  contextoOperativo: "Producci\xF3n propia diaria de panader\xEDa y pasteler\xEDa, venta minorista al p\xFAblico y distribuci\xF3n B2B a restaurantes locales.",
-  email: "administracion@financeai.es",
-  telefono: "+34 912 345 678"
+function getServerStorePath() {
+  const dir = path2.join(process.cwd(), "tmp");
+  if (!fs2.existsSync(dir)) {
+    try {
+      fs2.mkdirSync(dir, { recursive: true });
+    } catch {
+    }
+  }
+  return path2.join(dir, "enterprise_server_store.json");
+}
+function loadServerStore() {
+  try {
+    const file = getServerStorePath();
+    if (fs2.existsSync(file)) {
+      const data = JSON.parse(fs2.readFileSync(file, "utf-8"));
+      if (data && Array.isArray(data.facturas)) {
+        const hasDemoInvoices = data.facturas.length > 10 || data.facturas.some((f) => f.idFactura === "FAC-001" || f.nombreProveedor?.includes("Harinas"));
+        return {
+          facturas: hasDemoInvoices ? [] : data.facturas,
+          proveedores: hasDemoInvoices ? [] : Array.isArray(data.proveedores) ? data.proveedores : [],
+          datosNegocio: data.datosNegocio || DEFAULT_DATOS_NEGOCIO,
+          categorias: Array.isArray(data.categorias) && data.categorias.length > 0 ? data.categorias : DEFAULT_CATEGORIAS_GASTO_SERVER
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("Aviso al cargar server store persistente de disco:", e);
+  }
+  return {
+    facturas: [],
+    proveedores: [],
+    datosNegocio: { ...DEFAULT_DATOS_NEGOCIO },
+    categorias: [...DEFAULT_CATEGORIAS_GASTO_SERVER]
+  };
+}
+var initialLoadedStore = loadServerStore();
+var serverFacturas = initialLoadedStore.facturas;
+var serverProveedores = initialLoadedStore.proveedores;
+var serverDatosNegocio = initialLoadedStore.datosNegocio;
+var storedCategoriasGasto = initialLoadedStore.categorias;
+function persistServerStore() {
+  try {
+    const file = getServerStorePath();
+    const data = {
+      facturas: serverFacturas,
+      proveedores: serverProveedores,
+      datosNegocio: serverDatosNegocio,
+      categorias: storedCategoriasGasto
+    };
+    fs2.writeFileSync(file, JSON.stringify(data, null, 2), "utf-8");
+  } catch (e) {
+    console.warn("Aviso al persistir server store en disco:", e);
+  }
+}
+var SHEETS_CONFIG = {
+  sheetId: process.env.GOOGLE_SHEETS_ID || "",
+  endpointUrl: process.env.GOOGLE_SHEETS_ENDPOINT_URL || ""
 };
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    geminiConfigured: !!getGeminiApiKey(),
+    sheetsConfigured: !!SHEETS_CONFIG.sheetId || !!SHEETS_CONFIG.endpointUrl,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  });
+});
 app.get("/api/datos-negocio", async (req, res) => {
   try {
     const dbDatos = await obtenerDatosNegocioDeMySQL();
     if (dbDatos && dbDatos.nombre) {
       serverDatosNegocio = { ...serverDatosNegocio, ...dbDatos };
+      persistServerStore();
       return res.json({ success: true, datos: dbDatos, fuente: "mysql" });
     }
   } catch (err) {
     console.warn("Aviso al leer datos_negocio de MySQL:", err?.message);
   }
-  return res.json({ success: true, datos: serverDatosNegocio, fuente: "memoria" });
+  return res.json({ success: true, datos: serverDatosNegocio, fuente: "persistent_cache" });
 });
 app.post("/api/datos-negocio", async (req, res) => {
   const { datos } = req.body || {};
   if (datos && typeof datos === "object") {
     serverDatosNegocio = { ...serverDatosNegocio, ...datos };
+    persistServerStore();
     let guardadoEnMySQL = false;
     try {
       const resDb = await guardarDatosNegocioEnMySQL(datos);
@@ -3176,17 +2863,19 @@ app.get("/api/categorias-gasto", async (req, res) => {
     const dbCats = await obtenerCategoriasDeMySQL();
     if (dbCats && dbCats.length > 0) {
       storedCategoriasGasto = dbCats;
+      persistServerStore();
       return res.json({ categorias: dbCats, fuente: "mysql" });
     }
   } catch (err) {
     console.warn("Aviso al leer categorias_gasto de MySQL:", err?.message);
   }
-  res.json({ categorias: storedCategoriasGasto, fuente: "memoria" });
+  return res.json({ categorias: storedCategoriasGasto, fuente: "persistent_cache" });
 });
 app.post("/api/categorias-gasto", async (req, res) => {
   const { categorias } = req.body;
   if (Array.isArray(categorias) && categorias.length > 0) {
     storedCategoriasGasto = categorias;
+    persistServerStore();
     let guardadoEnMySQL = false;
     let mysqlReplicadas = 0;
     try {
@@ -3956,6 +3645,7 @@ async function procesarGuardadoFacturaDBFirst(req, res, facturaInput, configInpu
     } else {
       serverFacturas.push(nuevaFila);
     }
+    persistServerStore();
     let driveGuardado = false;
     let driveError = void 0;
     const endpointUrl = config?.endpointUrl || process.env.GOOGLE_DRIVE_ENDPOINT_URL || process.env.GOOGLE_SHEETS_ENDPOINT_URL;
@@ -4575,14 +4265,19 @@ app.post("/api/alertas/:id/estado", async (req, res) => {
 app.get("/api/facturas", async (req, res) => {
   try {
     const facturas = await obtenerFacturasDeMySQL();
-    if (facturas && facturas.length > 0) {
+    if (facturas && Array.isArray(facturas) && facturas.length > 0) {
       serverFacturas = [...facturas];
+      persistServerStore();
       return res.json({ success: true, facturas, count: facturas.length, fuente: "mysql" });
     }
   } catch (err) {
     console.warn("Aviso al consultar facturas en MySQL:", err?.message);
   }
-  return res.json({ success: true, facturas: serverFacturas, count: serverFacturas.length, fuente: "memoria" });
+  if (serverFacturas.length > 10 || serverFacturas.some((f) => f.idFactura === "FAC-001")) {
+    serverFacturas = [];
+    persistServerStore();
+  }
+  return res.json({ success: true, facturas: serverFacturas, count: serverFacturas.length, fuente: serverFacturas.length > 0 ? "persistent_cache" : "empty" });
 });
 app.post("/api/facturas", async (req, res) => {
   try {
@@ -4594,6 +4289,7 @@ app.post("/api/facturas", async (req, res) => {
         if (idx !== -1) serverFacturas[idx] = f;
         else serverFacturas.push(f);
       }
+      persistServerStore();
       return res.json({
         success: result.mysqlDisponible,
         replicadas: result.replicadas,
@@ -4622,6 +4318,7 @@ app.patch("/api/facturas/:id/estado", async (req, res) => {
     if (idx !== -1) {
       serverFacturas[idx].estado = estado;
       if (fechaPago) serverFacturas[idx].fechaPago = fechaPago;
+      persistServerStore();
     }
     return res.json({ success: result.ok, error: result.error });
   } catch (err) {
@@ -4816,6 +4513,7 @@ async function eliminarFacturaDBFirstHandler(req, res) {
   }
   const normalizedId = String(idFactura).trim();
   serverFacturas = serverFacturas.filter((f) => String(f.idFactura).trim().toLowerCase() !== normalizedId.toLowerCase());
+  persistServerStore();
   let mysqlDeleted = false;
   let mysqlError = null;
   try {
@@ -4959,15 +4657,17 @@ app.get("/api/proveedores", async (req, res) => {
         });
       });
       serverProveedores = [...provsConsolidados];
+      persistServerStore();
       return res.json({
         success: true,
         proveedores: provsConsolidados,
         count: provsConsolidados.length,
-        fuente: isMySQLAvailable() ? "mysql_consolidado" : "memoria_consolidada"
+        fuente: isMySQLAvailable() ? "mysql_consolidado" : "persistent_cache_consolidada"
       });
     }
     if (rawProvs && rawProvs.length > 0) {
       serverProveedores = [...rawProvs];
+      persistServerStore();
       return res.json({
         success: true,
         proveedores: rawProvs,
@@ -4978,12 +4678,13 @@ app.get("/api/proveedores", async (req, res) => {
   } catch (err) {
     console.warn("Aviso al consultar proveedores:", err?.message);
   }
-  res.json({ success: true, proveedores: serverProveedores, count: serverProveedores.length, fuente: "memoria" });
+  return res.json({ success: true, proveedores: serverProveedores, count: serverProveedores.length, fuente: "persistent_cache" });
 });
 app.post("/api/proveedores", async (req, res) => {
   const { proveedores } = req.body;
   if (Array.isArray(proveedores) && proveedores.length > 0) {
     serverProveedores = proveedores;
+    persistServerStore();
     let guardadoEnMySQL = false;
     let replicadas = 0;
     try {
@@ -5025,10 +4726,10 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else if (!process.env.VERCEL) {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = path2.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      res.sendFile(path2.join(distPath, "index.html"));
     });
   }
   if (!process.env.VERCEL) {
@@ -5038,15 +4739,10 @@ async function startServer() {
   }
 }
 var server_default = app;
-var isExecutedDirectly = (() => {
-  if (typeof process === "undefined" || !process.argv || !process.argv[1]) return false;
-  if (process.env.VERCEL || process.env.VERCEL_ENV || process.env.NOW_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT) {
-    return false;
-  }
-  const scriptPath = process.argv[1];
-  return scriptPath.endsWith("server.ts") || scriptPath.endsWith("server.cjs") || scriptPath.endsWith("server.js");
-})();
-if (isExecutedDirectly) {
+var isServerless = Boolean(
+  process.env.VERCEL || process.env.VERCEL_ENV || process.env.NOW_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT
+);
+if (!isServerless) {
   startServer().catch((err) => {
     console.error("Error starting Finance AI server:", err);
   });

@@ -18,6 +18,7 @@ import {
   Moon,
   Database,
   HardDrive,
+  CalendarClock,
   X
 } from 'lucide-react';
 import { GoogleSheetsConfig, DatosNegocio, DEFAULT_DATOS_NEGOCIO } from '../types';
@@ -28,6 +29,8 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   alertasActivasCount: number;
   facturasCount: number;
+  pendientesCount?: number;
+  vencidasCount?: number;
   sheetsConfig: GoogleSheetsConfig;
   onOpenConfig: () => void;
   onOpenChat: () => void;
@@ -44,6 +47,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   alertasActivasCount,
   facturasCount,
+  pendientesCount = 0,
+  vencidasCount = 0,
   sheetsConfig,
   onOpenConfig,
   onOpenChat,
@@ -58,6 +63,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const menuItems = [
     { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
     { id: 'facturas', label: 'Facturas', icon: FileText, badge: facturasCount },
+    {
+      id: 'vencimientos',
+      label: 'Vencimientos',
+      icon: CalendarClock,
+      badge: pendientesCount > 0 ? pendientesCount : undefined,
+      badgeColor:
+        vencidasCount > 0
+          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+    },
     { id: 'proveedores', label: 'Proveedores', icon: Building2 },
     { id: 'precios', label: 'Evolución Precios', icon: TrendingUp },
     { id: 'alertas', label: 'Alertas', icon: AlertTriangle, badge: alertasActivasCount, badgeColor: 'bg-rose-500/20 text-rose-400 border border-rose-500/30' },
