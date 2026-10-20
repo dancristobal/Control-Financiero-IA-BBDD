@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { Factura, ArchivoEnProceso, Proveedor, GoogleSheetsConfig, DatosNegocio, DEFAULT_DATOS_NEGOCIO, CategoriaGastoDef } from '../types';
 import { obtenerParametrosSistema } from '../utils/parametrosSistema';
-import { obtenerCategoriasGasto, obtenerColorCategoria } from '../utils/categoriasGasto';
+import { obtenerCategoriasGasto, obtenerColorCategoria, deduplicarCategorias } from '../utils/categoriasGasto';
 import { FacturaDetalleModal } from './FacturaDetalleModal';
 import { EliminarFacturaModal } from './EliminarFacturaModal';
 import { VisorFacturaModal } from './VisorFacturaModal';
@@ -139,7 +139,7 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
   const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGastoDef[]>(() =>
-    obtenerCategoriasGasto()
+    deduplicarCategorias(obtenerCategoriasGasto())
   );
 
   // Parámetros activos del sistema
@@ -196,7 +196,7 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
       }
     };
     const handleCategoriasActualizadas = (e: any) => {
-      setCategoriasGasto(e?.detail || obtenerCategoriasGasto());
+      setCategoriasGasto(deduplicarCategorias(e?.detail || obtenerCategoriasGasto()));
     };
     window.addEventListener('fa_parametros_sistema_updated', handleParamsActualizados);
     window.addEventListener('categoriasGastoActualizadas', handleCategoriasActualizadas);
@@ -1582,8 +1582,8 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
             className="bg-[#0a0f18] border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
           >
             <option value="TODAS">Todas las categorías</option>
-            {categoriasGasto.map((cat) => (
-              <option key={cat.id} value={cat.nombre}>
+            {categoriasGasto.map((cat, idx) => (
+              <option key={`${cat.id}-${idx}`} value={cat.nombre}>
                 {cat.nombre}
               </option>
             ))}

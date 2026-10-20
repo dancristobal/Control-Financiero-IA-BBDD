@@ -422,9 +422,9 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtrados.map((prov) => (
+          {filtrados.map((prov, idx) => (
             <div
-              key={prov.idProveedor}
+              key={`${prov.idProveedor}-${idx}`}
               onClick={() => setProveedorSeleccionado(prov)}
               className="p-5 rounded-2xl bg-[#101726] border border-slate-800/80 hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between group shadow-lg shadow-black/20"
             >

@@ -34,7 +34,7 @@ import {
   ConceptoRetencionIRPF,
   TIPOS_RETENCION_IRPF_PREDETERMINADOS,
 } from '../types';
-import { obtenerCategoriasGasto, obtenerColorCategoria } from '../utils/categoriasGasto';
+import { obtenerCategoriasGasto, obtenerColorCategoria, deduplicarCategorias } from '../utils/categoriasGasto';
 import { CategoriasGastoModal } from './CategoriasGastoModal';
 import { obtenerParametrosSistema } from '../utils/parametrosSistema';
 import {
@@ -112,12 +112,12 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
   const [idProveedor, setIdProveedor] = useState(facturaInicial?.idProveedor || '');
   const [concepto, setConcepto] = useState(facturaInicial?.concepto || '');
   const [categoriasGastoLista, setCategoriasGastoLista] = useState<CategoriaGastoDef[]>(() =>
-    obtenerCategoriasGasto()
+    deduplicarCategorias(obtenerCategoriasGasto())
   );
   const [isCategoriasModalOpen, setIsCategoriasModalOpen] = useState(false);
   const [categoriaGasto, setCategoriaGasto] = useState<string>(() => {
     if (facturaInicial?.categoriaGasto) return facturaInicial.categoriaGasto;
-    const iniciales = obtenerCategoriasGasto();
+    const iniciales = deduplicarCategorias(obtenerCategoriasGasto());
     return iniciales[0]?.nombre || 'Materias Primas';
   });
   const [categoriaGastoJustificacion, setCategoriaGastoJustificacion] = useState<string>(
@@ -126,7 +126,7 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
 
   useEffect(() => {
     const handleActualizadas = (e: any) => {
-      setCategoriasGastoLista(e?.detail || obtenerCategoriasGasto());
+      setCategoriasGastoLista(deduplicarCategorias(e?.detail || obtenerCategoriasGasto()));
     };
     window.addEventListener('categoriasGastoActualizadas', handleActualizadas);
     return () => window.removeEventListener('categoriasGastoActualizadas', handleActualizadas);
@@ -981,8 +981,8 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
                     }}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-slate-100 text-xs font-bold focus:outline-none focus:border-rose-500"
                   >
-                    {categoriasGastoLista.map((cat) => (
-                      <option key={cat.id} value={cat.nombre}>
+                    {categoriasGastoLista.map((cat, idx) => (
+                      <option key={`${cat.id}-${idx}`} value={cat.nombre}>
                         {cat.nombre}
                       </option>
                     ))}
@@ -994,11 +994,11 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
 
                 {/* Chips rápidos de categorías dinámicas con color */}
                 <div className="flex flex-wrap items-center gap-1.5 max-h-24 overflow-y-auto pr-1">
-                  {categoriasGastoLista.map((cat) => {
+                  {categoriasGastoLista.map((cat, idx) => {
                     const isSelected = categoriaGasto.toLowerCase() === cat.nombre.toLowerCase();
                     return (
                       <button
-                        key={cat.id}
+                        key={`${cat.id}-${idx}`}
                         type="button"
                         onClick={() => {
                           setCategoriaGasto(cat.nombre);

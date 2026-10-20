@@ -1,0 +1,58 @@
+{
+  "facturas": [],
+  "proveedores": [],
+  "datosNegocio": {
+    "nombre": "ams-soft",
+    "nif": "B-123456789",
+    "direccion": "c/Rafaletas,XX – Palma (Illes Balears)",
+    "actividad": "Consultoría Sistemas de Información",
+    "sector": "sector TIC (Tecnologías de la Información y la Comunicación)",
+    "contextoOperativo": "Empresa de servicios informáticos situada en Mallorca.\nSomos especialistas en programación a medida de soluciones de gestión para empresas, mediante aplicaciones de escritorio o aplicaciones web.\nOfrecemos servicios de consultoría de sistemas de información, sistemas informáticos lan y wan con servidores virtuales y físicos, servicios de internet (correo, páginas web, servidores de correo).\nRealizamos mantenimientos de sistemas informáticos de empresas con soporte sobre hardware y software.",
+    "email": "info@ams-soft.es",
+    "telefono": "+34 912 345 678"
+  },
+  "categorias": [
+    {
+      "id": "envases-y-embalajes",
+      "nombre": "Envases y Embalajes",
+      "descripcion": "Cajas kraft, bobinas, bandejas, film, bolsas, etiquetas y material de empaquetado.",
+      "color": "#f59e0b",
+      "esPredeterminada": true
+    },
+    {
+      "id": "logistica-y-transporte",
+      "nombre": "Logística y Transporte",
+      "descripcion": "Portes, transporte frigorífico/refrigerado, envíos urgentes, fletes y servicios de reparto.",
+      "color": "#10b981",
+      "esPredeterminada": true
+    },
+    {
+      "id": "mantenimiento-y-maquinaria",
+      "nombre": "Mantenimiento y Maquinaria",
+      "descripcion": "Reparaciones técnicas, revisiones preventivas de hornos, climatización, recambios y herramientas.",
+      "color": "#8b5cf6",
+      "esPredeterminada": true
+    },
+    {
+      "id": "materias-primas",
+      "nombre": "Materias Primas",
+      "descripcion": "Harinas, lácteos, azúcares, ingredientes base y consumibles directos de producción.",
+      "color": "#f43f5e",
+      "esPredeterminada": true
+    },
+    {
+      "id": "servicios-y-gestion",
+      "nombre": "Servicios y Gestión",
+      "descripcion": "Asesoría contable, fiscal y laboral, licencias de software, seguros y servicios profesionales.",
+      "color": "#ec4899",
+      "esPredeterminada": true
+    },
+    {
+      "id": "suministros-y-energia",
+      "nombre": "Suministros y Energía",
+      "descripcion": "Electricidad, gas, agua, telecomunicaciones, internet y suministros energéticos operativos.",
+      "color": "#0ea5e9",
+      "esPredeterminada": true
+    }
+  ]
+}

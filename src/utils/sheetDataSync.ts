@@ -67,7 +67,14 @@ export function generarProveedoresDesdeFacturas(facturas: Factura[]): Proveedor[
       : 3;
   const puedeEvaluarConcentracion = facturas.length >= minFacturas && mapProveedores.size > 1;
 
+  const idsUsados = new Set<string>();
   return Array.from(mapProveedores.values()).map((p, idx) => {
+    let finalId = p.id || `PROV-${idx + 1}`;
+    if (idsUsados.has(finalId)) {
+      finalId = `${finalId}-${idx + 1}`;
+    }
+    idsUsados.add(finalId);
+
     const share = p.total / totalGastoGlobal;
     const riesgo: 'Bajo' | 'Medio' | 'Alto' =
       puedeEvaluarConcentracion
@@ -84,7 +91,7 @@ export function generarProveedoresDesdeFacturas(facturas: Factura[]): Proveedor[
       'Suministros diversos';
 
     return {
-      idProveedor: p.id,
+      idProveedor: finalId,
       nombreProveedor: p.nombre,
       productosSuministrados: productos,
       importeMensual: Math.round((p.total / Math.max(1, Math.min(6, p.count))) * 100) / 100,

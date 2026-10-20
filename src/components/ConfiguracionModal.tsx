@@ -51,7 +51,7 @@ import {
   guardarParametrosSistema,
   restablecerParametrosSistema,
 } from '../utils/parametrosSistema';
-import { obtenerCategoriasGasto } from '../utils/categoriasGasto';
+import { obtenerCategoriasGasto, deduplicarCategorias } from '../utils/categoriasGasto';
 import { CategoriasGastoModal } from './CategoriasGastoModal';
 import { ConfiguracionFiscalTab } from './ConfiguracionFiscalTab';
 import { generarScriptSqlCompleto } from '../utils/sqlGenerator';
@@ -228,7 +228,7 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
   const [parametros, setParametros] = useState<ParametrosSistema>(() => obtenerParametrosSistema());
   const [guardadoExitosoParametros, setGuardadoExitosoParametros] = useState(false);
   const [categoriasGastoLista, setCategoriasGastoLista] = useState<CategoriaGastoDef[]>(() =>
-    obtenerCategoriasGasto()
+    deduplicarCategorias(obtenerCategoriasGasto())
   );
   const [isCategoriasModalOpen, setIsCategoriasModalOpen] = useState(false);
   const [tabActiva, setTabActiva] = useState<
@@ -520,7 +520,7 @@ export const ConfiguracionModal: React.FC<ConfiguracionModalProps> = ({
 
   useEffect(() => {
     const handleCatUpdated = (e: any) => {
-      setCategoriasGastoLista(e?.detail || obtenerCategoriasGasto());
+      setCategoriasGastoLista(deduplicarCategorias(e?.detail || obtenerCategoriasGasto()));
     };
     window.addEventListener('categoriasGastoActualizadas', handleCatUpdated);
     return () => window.removeEventListener('categoriasGastoActualizadas', handleCatUpdated);
@@ -1549,9 +1549,9 @@ function extractDriveFolderId(input) {
 
               {/* Lista visual de categorías */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {categoriasGastoLista.map((cat) => (
+                {categoriasGastoLista.map((cat, idx) => (
                   <div
-                    key={cat.id}
+                    key={`${cat.id}-${idx}`}
                     className="p-3.5 rounded-xl bg-[#111827] border border-slate-800 hover:border-slate-700 transition-colors flex flex-col justify-between gap-2"
                   >
                     <div className="flex items-start justify-between gap-2">

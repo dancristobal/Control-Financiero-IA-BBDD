@@ -179,6 +179,25 @@ interface ServerStoreData {
   categorias: any[];
 }
 
+function deduplicateCategorias(cats: any[]): any[] {
+  if (!Array.isArray(cats)) return [];
+  const map = new Map<string, any>();
+  for (const c of cats) {
+    if (!c) continue;
+    const key = String(c.id || c.nombre || '').toLowerCase().trim();
+    if (key && !map.has(key)) {
+      map.set(key, {
+        id: c.id || key,
+        nombre: String(c.nombre || key).trim(),
+        descripcion: c.descripcion || '',
+        color: c.color || '#0ea5e9',
+        esPredeterminada: Boolean(c.esPredeterminada),
+      });
+    }
+  }
+  return Array.from(map.values());
+}
+
 function loadServerStore(): ServerStoreData {
   try {
     const file = getServerStorePath();
@@ -186,11 +205,14 @@ function loadServerStore(): ServerStoreData {
       const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
       if (data && Array.isArray(data.facturas)) {
         const hasDemoInvoices = data.facturas.length > 10 || data.facturas.some((f: any) => f.idFactura === 'FAC-001' || f.nombreProveedor?.includes('Harinas'));
+        const catsLoaded = deduplicateCategorias(
+          Array.isArray(data.categorias) && data.categorias.length > 0 ? data.categorias : DEFAULT_CATEGORIAS_GASTO_SERVER
+        );
         return {
           facturas: hasDemoInvoices ? [] : data.facturas,
           proveedores: hasDemoInvoices ? [] : (Array.isArray(data.proveedores) ? data.proveedores : []),
           datosNegocio: data.datosNegocio || DEFAULT_DATOS_NEGOCIO,
-          categorias: Array.isArray(data.categorias) && data.categorias.length > 0 ? data.categorias : DEFAULT_CATEGORIAS_GASTO_SERVER,
+          categorias: catsLoaded.length > 0 ? catsLoaded : DEFAULT_CATEGORIAS_GASTO_SERVER,
         };
       }
     }
@@ -290,25 +312,26 @@ app.get('/api/categorias-gasto', async (req, res) => {
   try {
     const dbCats = await obtenerCategoriasDeMySQL();
     if (dbCats && dbCats.length > 0) {
-      storedCategoriasGasto = dbCats;
+      storedCategoriasGasto = deduplicateCategorias(dbCats);
       persistServerStore();
-      return res.json({ categorias: dbCats, fuente: 'mysql' });
+      return res.json({ categorias: storedCategoriasGasto, fuente: 'mysql' });
     }
   } catch (err: any) {
     console.warn('Aviso al leer categorias_gasto de MySQL:', err?.message);
   }
+  storedCategoriasGasto = deduplicateCategorias(storedCategoriasGasto);
   return res.json({ categorias: storedCategoriasGasto, fuente: 'persistent_cache' });
 });
 
 app.post('/api/categorias-gasto', async (req, res) => {
   const { categorias } = req.body;
   if (Array.isArray(categorias) && categorias.length > 0) {
-    storedCategoriasGasto = categorias;
+    storedCategoriasGasto = deduplicateCategorias(categorias);
     persistServerStore();
     let guardadoEnMySQL = false;
     let mysqlReplicadas = 0;
     try {
-      const resDb = await guardarCategoriasEnMySQL(categorias);
+      const resDb = await guardarCategoriasEnMySQL(storedCategoriasGasto);
       guardadoEnMySQL = resDb.mysqlDisponible;
       mysqlReplicadas = resDb.replicadas;
     } catch (e: any) {

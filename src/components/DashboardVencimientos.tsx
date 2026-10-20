@@ -22,7 +22,9 @@ import {
   X,
   CreditCard,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Factura, Proveedor } from '../types';
 import { formatMoneda } from '../utils/formatters';
@@ -483,6 +485,76 @@ export const DashboardVencimientos: React.FC<DashboardVencimientosProps> = ({
 
   const nombreMes = currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 
+  // Exportar facturas pendientes/filtradas a CSV/Excel para conciliación bancaria
+  const exportarVencimientosCSV = () => {
+    if (facturasFiltradas.length === 0) {
+      setToastFeedback('No hay facturas pendientes filtradas para exportar.');
+      setTimeout(() => setToastFeedback(null), 3500);
+      return;
+    }
+
+    const encabezados = [
+      'ID Factura',
+      'Fecha Vencimiento',
+      'Fecha Emisión',
+      'ID Proveedor',
+      'Nombre Proveedor',
+      'Concepto',
+      'Base Imponible (€)',
+      'Tipos IVA (%)',
+      'Cuota IVA (€)',
+      'Total Líquido (€)',
+      'Categoría Gasto',
+      'Estado',
+      'Días / Urgencia'
+    ];
+
+    const escapeCSV = (val: string | number | null | undefined): string => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const filas = facturasFiltradas.map((f) => {
+      const fVenc = getFechaVencimiento(f);
+      const dias = getDiasDiferencia(fVenc);
+      const urgenciaStr = dias < 0 ? `Vencida (${Math.abs(dias)} días)` : dias === 0 ? 'Vence hoy' : `En ${dias} días`;
+
+      return [
+        escapeCSV(f.idFactura),
+        escapeCSV(fVenc),
+        escapeCSV(f.fechaEmision),
+        escapeCSV(f.idProveedor),
+        escapeCSV(f.nombreProveedor),
+        escapeCSV(f.concepto),
+        escapeCSV(Number(f.baseImponible || 0).toFixed(2).replace('.', ',')),
+        escapeCSV(f.tiposIVA || '21%'),
+        escapeCSV(Number(f.cuotaIVA || 0).toFixed(2).replace('.', ',')),
+        escapeCSV(Number(f.total || 0).toFixed(2).replace('.', ',')),
+        escapeCSV(f.categoriaGasto),
+        escapeCSV(f.estado),
+        escapeCSV(urgenciaStr)
+      ].join(';');
+    });
+
+    // UTF-8 BOM (\uFEFF) para compatibilidad con Excel / Numbers
+    const csvContent = '\uFEFF' + [encabezados.map((h) => `"${h}"`).join(';'), ...filas].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const fechaActual = new Date().toISOString().substring(0, 10);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `vencimientos_conciliacion_bancaria_${fechaActual}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setToastFeedback(`Se han exportado ${facturasFiltradas.length} facturas pendientes a CSV/Excel con éxito.`);
+    setTimeout(() => setToastFeedback(null), 4000);
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Toast Feedback */}
@@ -561,13 +633,22 @@ export const DashboardVencimientos: React.FC<DashboardVencimientosProps> = ({
             </button>
           </div>
 
+          <button
+            onClick={exportarVencimientosCSV}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-950/30 transition-all cursor-pointer"
+            title="Exportar facturas pendientes y filtradas a CSV/Excel para conciliación bancaria"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Exportar CSV ({facturasFiltradas.length})</span>
+          </button>
+
           {onNavigateToFacturas && (
             <button
               onClick={onNavigateToFacturas}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-medium transition-all"
             >
               <FileText className="w-3.5 h-3.5 text-slate-400" />
-              <span>Ver todas las facturas</span>
+              <span>Ver todas</span>
               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
           )}

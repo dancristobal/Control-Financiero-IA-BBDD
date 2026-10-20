@@ -37,7 +37,7 @@ import {
 } from 'recharts';
 import { Factura, Proveedor, Alerta, DatosNegocio, DEFAULT_DATOS_NEGOCIO, CategoriaGastoDef } from '../types';
 import { obtenerParametrosSistema } from '../utils/parametrosSistema';
-import { obtenerCategoriasGasto, obtenerColorCategoria } from '../utils/categoriasGasto';
+import { obtenerCategoriasGasto, obtenerColorCategoria, deduplicarCategorias } from '../utils/categoriasGasto';
 import { procesarRetencionesIRPF } from '../utils/fiscalidad';
 
 interface ResumenViewProps {
@@ -67,7 +67,9 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
 }) => {
   const nombreNegocio = datosNegocio?.nombre || DEFAULT_DATOS_NEGOCIO.nombre;
   const [parametrosActivos, setParametrosActivos] = useState(() => obtenerParametrosSistema());
-  const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGastoDef[]>(() => obtenerCategoriasGasto());
+  const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGastoDef[]>(() =>
+    deduplicarCategorias(obtenerCategoriasGasto())
+  );
   const [periodo, setPeriodo] = useState<PeriodFilter>(() => {
     try {
       return obtenerParametrosSistema().periodoDashboardPredeterminado || 'ano';
@@ -92,7 +94,7 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
       }
     };
     const handleCategoriasActualizadas = (e: any) => {
-      setCategoriasGasto(e?.detail || obtenerCategoriasGasto());
+      setCategoriasGasto(deduplicarCategorias(e?.detail || obtenerCategoriasGasto()));
     };
     window.addEventListener('fa_parametros_sistema_updated', handleParamsActualizados);
     window.addEventListener('categoriasGastoActualizadas', handleCategoriasActualizadas);
@@ -1147,8 +1149,8 @@ export const ResumenView: React.FC<ResumenViewProps> = ({
 
           {/* Categories Legend */}
           <div className="space-y-1.5 mt-2 text-xs border-t border-slate-800/80 pt-3">
-            {datosPorCategoria.map((cat) => (
-              <div key={cat.name} className="flex items-center justify-between text-slate-300">
+            {datosPorCategoria.map((cat, idx) => (
+              <div key={`cat-${cat.name}-${idx}`} className="flex items-center justify-between text-slate-300">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }}></span>
                   <span className="truncate max-w-[140px]">{cat.name}</span>

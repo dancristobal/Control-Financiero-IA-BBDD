@@ -16,6 +16,7 @@ import {
 import { CategoriaGastoDef } from '../types';
 import {
   obtenerCategoriasGasto,
+  deduplicarCategorias,
   guardarCategoriasGasto,
   agregarCategoriaGasto,
   actualizarCategoriaGasto,
@@ -35,7 +36,9 @@ export const CategoriasGastoModal: React.FC<CategoriasGastoModalProps> = ({
   onClose,
   onCategoriaCreadaOActualizada,
 }) => {
-  const [categorias, setCategorias] = useState<CategoriaGastoDef[]>(() => obtenerCategoriasGasto());
+  const [categorias, setCategorias] = useState<CategoriaGastoDef[]>(() =>
+    deduplicarCategorias(obtenerCategoriasGasto())
+  );
   const [modoEdicion, setModoEdicion] = useState<boolean>(false);
   const [categoriaEditandoId, setCategoriaEditandoId] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export const CategoriasGastoModal: React.FC<CategoriasGastoModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setCategorias(obtenerCategoriasGasto());
+      setCategorias(deduplicarCategorias(obtenerCategoriasGasto()));
       setModoEdicion(false);
       setCategoriaEditandoId(null);
       setErrorValidacion(null);
@@ -403,11 +406,11 @@ export const CategoriasGastoModal: React.FC<CategoriasGastoModalProps> = ({
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {categorias.map((cat) => {
+              {categorias.map((cat, idx) => {
                 const esPredeterminada = Boolean(cat.esPredeterminada);
                 return (
                   <div
-                    key={cat.id}
+                    key={`${cat.id}-${idx}`}
                     className="p-4 rounded-xl bg-[#101726] border border-slate-800/80 hover:border-slate-700 flex flex-col justify-between group transition-all"
                   >
                     <div className="space-y-2">

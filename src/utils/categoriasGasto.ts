@@ -60,19 +60,41 @@ export const PALETA_COLORES_SUGERIDOS: { nombre: string; hex: string }[] = [
   { nombre: 'Pizarra / Slate', hex: '#64748b' },
 ];
 
-let cacheCategoriasGasto: CategoriaGastoDef[] = [...DEFAULT_CATEGORIAS_GASTO];
+export function deduplicarCategorias(categorias: CategoriaGastoDef[]): CategoriaGastoDef[] {
+  if (!Array.isArray(categorias)) return [...DEFAULT_CATEGORIAS_GASTO];
+  const map = new Map<string, CategoriaGastoDef>();
+  for (const c of categorias) {
+    if (!c) continue;
+    const rawId = (c.id || c.nombre || '').toLowerCase().trim();
+    if (!rawId) continue;
+    if (!map.has(rawId)) {
+      map.set(rawId, {
+        id: c.id || rawId,
+        nombre: (c.nombre || 'Categoría').trim(),
+        descripcion: (c.descripcion || '').trim(),
+        color: c.color || '#0ea5e9',
+        esPredeterminada: Boolean(c.esPredeterminada),
+      });
+    }
+  }
+  return Array.from(map.values());
+}
+
+let cacheCategoriasGasto: CategoriaGastoDef[] = deduplicarCategorias(DEFAULT_CATEGORIAS_GASTO);
 
 export function obtenerCategoriasGasto(): CategoriaGastoDef[] {
+  cacheCategoriasGasto = deduplicarCategorias(cacheCategoriasGasto);
   return cacheCategoriasGasto;
 }
 
 export function establecerCategoriasEnMemoria(categorias: CategoriaGastoDef[]): void {
   if (Array.isArray(categorias) && categorias.length > 0) {
-    cacheCategoriasGasto = categorias;
+    const dedup = deduplicarCategorias(categorias);
+    cacheCategoriasGasto = dedup;
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('categoriasGastoActualizadas', {
-          detail: categorias,
+          detail: dedup,
         })
       );
     }
@@ -84,15 +106,16 @@ export async function sincronizarCategoriasDesdeBD(): Promise<CategoriaGastoDef[
     const res = await fetch('/api/categorias-gasto');
     const data = await res.json();
     if (data?.categorias && Array.isArray(data.categorias) && data.categorias.length > 0) {
-      cacheCategoriasGasto = data.categorias;
+      const dedup = deduplicarCategorias(data.categorias);
+      cacheCategoriasGasto = dedup;
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('categoriasGastoActualizadas', {
-            detail: data.categorias,
+            detail: dedup,
           })
         );
       }
-      return data.categorias;
+      return dedup;
     }
   } catch (err) {
     console.warn('Aviso al sincronizar categorías desde MySQL:', err);
@@ -101,11 +124,12 @@ export async function sincronizarCategoriasDesdeBD(): Promise<CategoriaGastoDef[
 }
 
 export function guardarCategoriasGasto(categorias: CategoriaGastoDef[]): void {
-  cacheCategoriasGasto = categorias;
+  const dedup = deduplicarCategorias(categorias);
+  cacheCategoriasGasto = dedup;
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('categoriasGastoActualizadas', {
-        detail: categorias,
+        detail: dedup,
       })
     );
   }
@@ -113,7 +137,7 @@ export function guardarCategoriasGasto(categorias: CategoriaGastoDef[]): void {
   fetch('/api/categorias-gasto', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ categorias }),
+    body: JSON.stringify({ categorias: dedup }),
   }).catch((err) => {
     console.warn('Error al persistir categorías de gasto en MySQL:', err);
   });
