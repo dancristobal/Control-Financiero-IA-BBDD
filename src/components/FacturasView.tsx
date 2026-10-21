@@ -40,6 +40,7 @@ import { EliminarFacturaModal } from './EliminarFacturaModal';
 import { VisorFacturaModal } from './VisorFacturaModal';
 import { CamaraFacturaModal } from './CamaraFacturaModal';
 import { FormularioFacturaModal } from './FormularioFacturaModal';
+import { ConfirmarPagoModal } from './ConfirmarPagoModal';
 
 interface FacturasViewProps {
   facturas: Factura[];
@@ -127,6 +128,16 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
 
   // Notification Toast
   const [notificacion, setNotificacion] = useState<string | null>(null);
+  const [facturaParaPago, setFacturaParaPago] = useState<Factura | null>(null);
+
+  const handleConfirmarPago = async (idFactura: string, fechaPagoSeleccionada: string) => {
+    if (onActualizarEstadoFactura) {
+      await onActualizarEstadoFactura(idFactura, 'Pagada', fechaPagoSeleccionada);
+      setNotificacion(`¡Factura ${idFactura} marcada como Pagada con fecha ${fechaPagoSeleccionada}!`);
+      setTimeout(() => setNotificacion(null), 3500);
+    }
+    setFacturaParaPago(null);
+  };
 
   // Table Filters State
   const [busqueda, setBusqueda] = useState('');
@@ -1906,6 +1917,10 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                           onChange={async (e) => {
                             e.stopPropagation();
                             const nuevo = e.target.value as 'Pagada' | 'Pendiente' | 'Vencida';
+                            if (nuevo === 'Pagada') {
+                              setFacturaParaPago(fac);
+                              return;
+                            }
                             if (onActualizarEstadoFactura) {
                               await onActualizarEstadoFactura(fac.idFactura, nuevo);
                               setNotificacion('¡Estado actualizado con éxito y guardado en MySQL!');
@@ -2159,8 +2174,8 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
         onUploadToDrive={onUploadToDrive}
         onActualizarEstado={
           onActualizarEstadoFactura
-            ? async (fac, nuevoEstado) => {
-                await onActualizarEstadoFactura(fac.idFactura, nuevoEstado);
+            ? async (fac, nuevoEstado, fechaPago) => {
+                await onActualizarEstadoFactura(fac.idFactura, nuevoEstado, fechaPago);
                 setFacturaSeleccionada((prev) =>
                   prev && prev.idFactura === fac.idFactura
                     ? {
@@ -2168,7 +2183,7 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
                         estado: nuevoEstado,
                         fechaPago:
                           nuevoEstado === 'Pagada'
-                            ? new Date().toISOString().split('T')[0]
+                            ? (fechaPago || new Date().toISOString().split('T')[0])
                             : 'Pendiente',
                       }
                     : prev
@@ -2240,6 +2255,16 @@ export const FacturasView: React.FC<FacturasViewProps> = ({
           }
         }}
       />
+
+      {/* Modal para introducir fecha de pago al pasar a Pagada */}
+      {facturaParaPago && (
+        <ConfirmarPagoModal
+          isOpen={Boolean(facturaParaPago)}
+          factura={facturaParaPago}
+          onClose={() => setFacturaParaPago(null)}
+          onConfirmar={handleConfirmarPago}
+        />
+      )}
     </div>
   );
 };

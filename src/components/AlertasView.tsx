@@ -836,8 +836,8 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
         onUploadToDrive={onUploadToDrive}
         onActualizarEstado={
           onActualizarEstadoFactura
-            ? async (fac, nuevoEstado) => {
-                await onActualizarEstadoFactura(fac.idFactura, nuevoEstado);
+            ? async (fac, nuevoEstado, fechaPago) => {
+                await onActualizarEstadoFactura(fac.idFactura, nuevoEstado, fechaPago);
                 setFacturaSeleccionada((prev) =>
                   prev && prev.idFactura === fac.idFactura
                     ? {
@@ -845,7 +845,7 @@ export const AlertasView: React.FC<AlertasViewProps> = ({
                         estado: nuevoEstado,
                         fechaPago:
                           nuevoEstado === 'Pagada'
-                            ? new Date().toISOString().split('T')[0]
+                            ? (fechaPago || new Date().toISOString().split('T')[0])
                             : 'Pendiente',
                       }
                     : prev

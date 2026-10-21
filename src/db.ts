@@ -283,6 +283,67 @@ async function createTablesOnConnection(conn: any): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 
+  // Tabla clientes
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS clientes (
+      id_cliente VARCHAR(64) PRIMARY KEY,
+      nombre_cliente VARCHAR(255) NOT NULL,
+      cif VARCHAR(50),
+      contacto VARCHAR(255),
+      direccion TEXT,
+      volumen_ventas_anual DECIMAL(12,2) DEFAULT 0.00,
+      email VARCHAR(150),
+      telefono VARCHAR(50),
+      creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+
+  // Tabla facturas_emitidas
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS facturas_emitidas (
+      id_factura VARCHAR(100) PRIMARY KEY,
+      fecha_emision DATE NOT NULL,
+      id_cliente VARCHAR(64),
+      nombre_cliente VARCHAR(255) NOT NULL,
+      cif_cliente VARCHAR(50),
+      concepto TEXT,
+      importe DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+      fecha_vencimiento DATE,
+      estado ENUM('Emitida', 'Cobrada', 'Vencida', 'Anulada') DEFAULT 'Emitida',
+      fecha_cobro VARCHAR(50) DEFAULT 'Pendiente de cobrar',
+      base_imponible DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+      tipos_iva VARCHAR(50) DEFAULT '21%',
+      cuota_iva DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+      aplica_retencion_irpf BOOLEAN DEFAULT FALSE,
+      tipo_retencion_irpf VARCHAR(50),
+      porcentaje_irpf DECIMAL(5,2) DEFAULT 0.00,
+      cuota_irpf DECIMAL(12,2) DEFAULT 0.00,
+      total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+      categoria_venta VARCHAR(150),
+      notas TEXT,
+      verifactu_hash VARCHAR(255),
+      sincronizado_sheets BOOLEAN DEFAULT FALSE,
+      creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cliente (id_cliente),
+      INDEX idx_fecha_emitida (fecha_emision)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+
+  // Tabla lineas_factura_emitida
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS lineas_factura_emitida (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      id_factura VARCHAR(100) NOT NULL,
+      nombre_producto VARCHAR(255) NOT NULL,
+      cantidad DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+      precio_unitario DECIMAL(12,4) NOT NULL DEFAULT 0.00,
+      subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+      FOREIGN KEY (id_factura) REFERENCES facturas_emitidas(id_factura) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+
   // 4. Tabla facturas
   await conn.query(`
     CREATE TABLE IF NOT EXISTS facturas (

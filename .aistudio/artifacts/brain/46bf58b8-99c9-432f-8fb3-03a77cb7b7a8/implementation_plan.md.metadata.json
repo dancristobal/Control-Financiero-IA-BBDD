@@ -1,6 +1,6 @@
 {
-  "summary": "Plan de implementación para la creación de la skill especializada de agente 'invoice-ocr-validation', orientada a la extracción inteligente multimodal de facturas con Gemini, validación contable española y resolución de descuadres impositivos.",
-  "updatedAt": "2026-10-15T16:36:01.596886053Z",
+  "summary": "Plan maestro de transformación a ERP Financiero e Impositivo Completo en España: Módulo de Ingresos y Facturación Emitida, Cumplimiento AEAT (Modelos 303/347/130) y Cuenta de Resultados P&L / EBITDA.",
+  "updatedAt": "2026-10-20T09:15:32.829692992Z",
   "requestFeedback": true,
   "userFacing": true
 }

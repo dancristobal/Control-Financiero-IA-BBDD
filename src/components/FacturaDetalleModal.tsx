@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, FileText, CheckCircle2, Calendar, Building2, Tag, Layers, Download, Trash2, Eye, UploadCloud, Loader2, Sparkles, Edit3, StickyNote } from 'lucide-react';
 import { Factura } from '../types';
 import { obtenerColorCategoria } from '../utils/categoriasGasto';
+import { ConfirmarPagoModal } from './ConfirmarPagoModal';
 
 interface FacturaDetalleModalProps {
   factura: Factura | null;
@@ -10,7 +11,7 @@ interface FacturaDetalleModalProps {
   onAbrirVisor?: (factura: Factura) => void;
   onUploadToDrive?: (factura: Factura) => Promise<any> | void;
   onEditarEnFormulario?: (factura: Factura) => void;
-  onActualizarEstado?: (factura: Factura, nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida') => Promise<any> | void;
+  onActualizarEstado?: (factura: Factura, nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida', fechaPago?: string) => Promise<any> | void;
 }
 
 export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
@@ -25,6 +26,7 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
   const [facturaActual, setFacturaActual] = useState<Factura | null>(facturaProp);
   const [subiendoDrive, setSubiendoDrive] = useState(false);
   const [feedbackMensaje, setFeedbackMensaje] = useState<string | null>(null);
+  const [mostrarModalPago, setMostrarModalPago] = useState<boolean>(false);
 
   // Sincronizar reactivamente cuando cambia la prop de la factura
   useEffect(() => {
@@ -34,10 +36,14 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
   const factura = facturaActual || facturaProp;
   if (!factura) return null;
 
-  const handleCambiarEstado = async (nuevo: 'Pagada' | 'Pendiente' | 'Vencida') => {
+  const handleCambiarEstado = async (nuevo: 'Pagada' | 'Pendiente' | 'Vencida', fechaPagoManual?: string) => {
     if (!onActualizarEstado) return;
+    if (nuevo === 'Pagada' && !fechaPagoManual) {
+      setMostrarModalPago(true);
+      return;
+    }
     const fechaPagoFinal =
-      nuevo === 'Pagada' ? new Date().toISOString().split('T')[0] : 'Pendiente';
+      nuevo === 'Pagada' ? (fechaPagoManual || new Date().toISOString().split('T')[0]) : 'Pendiente';
 
     // 1. Actualización reactiva instantánea para que la pantalla y los badges se refresquen de inmediato
     const facturaActualizada: Factura = {
@@ -49,8 +55,8 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
 
     // 2. Persistir en MySQL y actualizar estado global de la app
     try {
-      await onActualizarEstado(facturaActualizada, nuevo);
-      setFeedbackMensaje(`¡Estado actualizado a "${nuevo}" con éxito y guardado en MySQL!`);
+      await onActualizarEstado(facturaActualizada, nuevo, fechaPagoFinal);
+      setFeedbackMensaje(`¡Estado actualizado a "${nuevo}" con fecha ${fechaPagoFinal}!`);
     } catch {
       setFeedbackMensaje(`Estado actualizado a "${nuevo}".`);
     }
@@ -579,6 +585,19 @@ export const FacturaDetalleModal: React.FC<FacturaDetalleModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal para introducir fecha de pago al pasar a Pagada */}
+      {mostrarModalPago && (
+        <ConfirmarPagoModal
+          isOpen={mostrarModalPago}
+          factura={factura}
+          onClose={() => setMostrarModalPago(false)}
+          onConfirmar={async (id, fechaPagoSeleccionada) => {
+            setMostrarModalPago(false);
+            await handleCambiarEstado('Pagada', fechaPagoSeleccionada);
+          }}
+        />
+      )}
     </div>
   );
 };

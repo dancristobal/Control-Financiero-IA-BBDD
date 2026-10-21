@@ -36,7 +36,7 @@ interface ProveedoresViewProps {
   onUploadToDrive?: (factura: Factura) => Promise<any> | void;
   onDeleteFactura?: (factura: Factura) => void;
   onSaveProveedor?: (proveedor: Proveedor) => Promise<any> | void;
-  onActualizarEstadoFactura?: (idFactura: string, nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida') => Promise<any> | void;
+  onActualizarEstadoFactura?: (idFactura: string, nuevoEstado: 'Pagada' | 'Pendiente' | 'Vencida', fechaPago?: string) => Promise<any> | void;
 }
 
 type PeriodFilter = '7d' | '30d' | 'trimestre' | 'ano' | 'personalizado' | 'todos';
@@ -982,8 +982,8 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
         onUploadToDrive={onUploadToDrive}
         onActualizarEstado={
           onActualizarEstadoFactura
-            ? async (fac, nuevoEstado) => {
-                await onActualizarEstadoFactura(fac.idFactura, nuevoEstado);
+            ? async (fac, nuevoEstado, fechaPago) => {
+                await onActualizarEstadoFactura(fac.idFactura, nuevoEstado, fechaPago);
                 setFacturaSeleccionada((prev) =>
                   prev && prev.idFactura === fac.idFactura
                     ? {
@@ -991,7 +991,7 @@ export const ProveedoresView: React.FC<ProveedoresViewProps> = ({
                         estado: nuevoEstado,
                         fechaPago:
                           nuevoEstado === 'Pagada'
-                            ? new Date().toISOString().split('T')[0]
+                            ? (fechaPago || new Date().toISOString().split('T')[0])
                             : 'Pendiente',
                       }
                     : prev

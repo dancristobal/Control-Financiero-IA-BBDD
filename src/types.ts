@@ -885,4 +885,41 @@ export interface ResultadoModelo349 {
   particularidades: ParticularidadModelo[];
 }
 
+export interface Cliente {
+  idCliente: string;
+  nombreCliente: string;
+  cif: string;
+  contacto?: string;
+  direccion?: string;
+  volumenVentasAnual?: number;
+  email?: string;
+  telefono?: string;
+}
+
+export interface FacturaEmitida {
+  idFactura: string;
+  fechaEmision: string;
+  idCliente: string;
+  nombreCliente: string;
+  cifCliente?: string;
+  concepto: string;
+  importe: number;
+  fechaVencimiento: string;
+  estado: 'Emitida' | 'Cobrada' | 'Vencida' | 'Anulada';
+  fechaCobro: string;
+  baseImponible: number;
+  tiposIVA: string;
+  cuotaIVA: number; // IVA Repercutido
+  aplicaRetencionIRPF?: boolean;
+  tipoRetencionIRPF?: string;
+  porcentajeIRPF?: number;
+  cuotaIRPF?: number;
+  total: number;
+  categoriaVenta?: string;
+  lineas?: ProductoLinea[];
+  notas?: string;
+  verifactuHash?: string;
+  sincronizadoSheets?: boolean;
+}
+
 

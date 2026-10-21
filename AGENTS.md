@@ -74,6 +74,7 @@
 │   │   ├── CategoriasGastoModal.tsx  # Editor de categorías de gasto y colores
 │   │   ├── ChatFacturasModal.tsx     # Ventana emergente de chat contable con IA
 │   │   ├── EliminarFacturaModal.tsx  # Modal de confirmación con borrado transaccional
+│   │   ├── ConfirmarPagoModal.tsx    # Modal de confirmación y selección de fecha de pago
 │   │   ├── InformePdfModal.tsx       # Exportador formateado de informes ejecutivos
 │   │   ├── TipoImpositivoModal.tsx   # Selector rápido de regímenes impositivos
 │   │   ├── GlobalLoadingBar.tsx      # Barra de progreso superior reactiva

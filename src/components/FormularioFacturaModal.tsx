@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   Sparkles,
@@ -36,6 +36,7 @@ import {
 } from '../types';
 import { obtenerCategoriasGasto, obtenerColorCategoria, deduplicarCategorias } from '../utils/categoriasGasto';
 import { CategoriasGastoModal } from './CategoriasGastoModal';
+import { ConfirmarPagoModal } from './ConfirmarPagoModal';
 import { obtenerParametrosSistema } from '../utils/parametrosSistema';
 import {
   CATALOGO_TIPOS_IMPOSITIVOS,
@@ -240,6 +241,49 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
   const [fechaPago, setFechaPago] = useState<string>(facturaInicial?.fechaPago || 'Pendiente de confirmar');
   const [notas, setNotas] = useState<string>(facturaInicial?.notas || '');
   const [lineas, setLineas] = useState<ProductoLinea[]>(facturaInicial?.lineas || []);
+  const [isConfirmarPagoModalOpen, setIsConfirmarPagoModalOpen] = useState(false);
+
+  const facturaParaConfirmarPago: Factura = useMemo(() => ({
+    idFactura: idFactura || 'FAC-NUEVA',
+    fechaEmision: fechaEmision || new Date().toISOString().split('T')[0],
+    idProveedor: idProveedor || '',
+    nombreProveedor: nombreProveedor || 'Proveedor',
+    concepto: concepto || '',
+    baseImponible: baseImponible || 0,
+    tiposIVA: tiposIVA || '21%',
+    cuotaIVA: cuotaIVA || 0,
+    total: total || (baseImponible + cuotaIVA + (aplicaRecargoEquivalencia ? cuotaRecargoEquivalencia : 0) - (aplicaRetencionIRPF ? cuotaIRPF : 0)),
+    importe: total || (baseImponible + cuotaIVA + (aplicaRecargoEquivalencia ? cuotaRecargoEquivalencia : 0) - (aplicaRetencionIRPF ? cuotaIRPF : 0)),
+    categoriaGasto: (categoriaGasto as any) || 'Otros',
+    estado: 'Pagada',
+    fechaVencimiento: fechaVencimiento || undefined,
+    fechaPago: (fechaPago && !fechaPago.toLowerCase().includes('pendiente')) ? fechaPago : new Date().toISOString().split('T')[0],
+    lineas: lineas || [],
+  }), [
+    idFactura,
+    fechaEmision,
+    idProveedor,
+    nombreProveedor,
+    concepto,
+    baseImponible,
+    tiposIVA,
+    cuotaIVA,
+    total,
+    aplicaRecargoEquivalencia,
+    cuotaRecargoEquivalencia,
+    aplicaRetencionIRPF,
+    cuotaIRPF,
+    categoriaGasto,
+    fechaVencimiento,
+    fechaPago,
+    lineas
+  ]);
+
+  const handleConfirmarPago = (_id: string, fechaPagoSeleccionada: string) => {
+    setEstado('Pagada');
+    setFechaPago(fechaPagoSeleccionada);
+    setIsConfirmarPagoModalOpen(false);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1471,8 +1515,18 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
                 <label className="text-xs font-semibold text-slate-300">Estado Pago</label>
                 <select
                   value={estado}
-                  onChange={(e) => setEstado(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-rose-500 font-semibold"
+                  onChange={(e) => {
+                    const nuevo = e.target.value as 'Pendiente' | 'Pagada' | 'Vencida';
+                    if (nuevo === 'Pagada') {
+                      setIsConfirmarPagoModalOpen(true);
+                      return;
+                    }
+                    setEstado(nuevo);
+                    if (fechaPago === new Date().toISOString().split('T')[0]) {
+                      setFechaPago('Pendiente de confirmar');
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-rose-500 font-semibold cursor-pointer"
                 >
                   <option value="Pendiente">Pendiente</option>
                   <option value="Pagada">Pagada</option>
@@ -1480,9 +1534,30 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Fecha Pago</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">Fecha Pago</label>
+                  {estado === 'Pagada' ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsConfirmarPagoModalOpen(true)}
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold underline cursor-pointer"
+                      title="Abrir selector de confirmación de fecha de pago"
+                    >
+                      Ajustar Fecha
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsConfirmarPagoModalOpen(true)}
+                      className="text-[10px] text-sky-400 hover:text-sky-300 font-semibold underline cursor-pointer"
+                      title="Pasar a pagada e indicar fecha de pago"
+                    >
+                      Marcar Pagada
+                    </button>
+                  )}
+                </div>
                 <input
-                  type="text"
+                  type={estado === 'Pagada' ? 'date' : 'text'}
                   value={fechaPago}
                   onChange={(e) => setFechaPago(e.target.value)}
                   placeholder="YYYY-MM-DD o Pendiente"
@@ -1666,6 +1741,16 @@ export const FormularioFacturaModal: React.FC<FormularioFacturaModalProps> = ({
           setSugerenciaIaActiva(false);
         }}
       />
+
+      {/* Modal para introducir fecha de pago al pasar a Pagada */}
+      {isConfirmarPagoModalOpen && (
+        <ConfirmarPagoModal
+          isOpen={isConfirmarPagoModalOpen}
+          factura={facturaParaConfirmarPago}
+          onClose={() => setIsConfirmarPagoModalOpen(false)}
+          onConfirmar={handleConfirmarPago}
+        />
+      )}
     </div>
   );
 };

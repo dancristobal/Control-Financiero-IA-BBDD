@@ -30,6 +30,7 @@ import { Factura, Proveedor } from '../types';
 import { formatMoneda } from '../utils/formatters';
 import { obtenerColorCategoria } from '../utils/categoriasGasto';
 import { FacturaDetalleModal } from './FacturaDetalleModal';
+import { ConfirmarPagoModal } from './ConfirmarPagoModal';
 
 interface DashboardVencimientosProps {
   facturas: Factura[];
@@ -77,6 +78,7 @@ export const DashboardVencimientos: React.FC<DashboardVencimientosProps> = ({
   const [sortBy, setSortBy] = useState<SortOption>('vencimiento-asc');
   const [facturaSeleccionada, setFacturaSeleccionada] = useState<Factura | null>(null);
   const [accionEnCurso, setAccionEnCurso] = useState<string | null>(null);
+  const [facturaParaPago, setFacturaParaPago] = useState<Factura | null>(null);
   const [toastFeedback, setToastFeedback] = useState<string | null>(null);
 
   // Helper para normalizar fecha de vencimiento (formato YYYY-MM-DD)
@@ -452,19 +454,23 @@ export const DashboardVencimientos: React.FC<DashboardVencimientosProps> = ({
     return cells;
   }, [currentMonth, facturasPorFecha, todayStr]);
 
-  // Manejador para marcar una factura como pagada directamente
-  const handleMarcarPagada = async (f: Factura) => {
+  // Manejador para iniciar el proceso de marcar una factura como pagada con selector de fecha
+  const handleMarcarPagada = (f: Factura) => {
+    setFacturaParaPago(f);
+  };
+
+  const handleConfirmarPago = async (idFactura: string, fechaPagoSeleccionada: string) => {
     if (!onActualizarEstadoFactura) return;
-    setAccionEnCurso(f.idFactura);
-    const fechaPagoHoy = new Date().toISOString().split('T')[0];
+    setAccionEnCurso(idFactura);
 
     try {
-      await onActualizarEstadoFactura(f.idFactura, 'Pagada', fechaPagoHoy);
-      setToastFeedback(`Factura ${f.idFactura} (${f.nombreProveedor}) marcada como Pagada.`);
+      await onActualizarEstadoFactura(idFactura, 'Pagada', fechaPagoSeleccionada);
+      setToastFeedback(`Factura ${idFactura} marcada como Pagada con fecha ${fechaPagoSeleccionada}.`);
     } catch {
-      setToastFeedback(`Actualizada factura ${f.idFactura}`);
+      setToastFeedback(`Actualizada factura ${idFactura}`);
     } finally {
       setAccionEnCurso(null);
+      setFacturaParaPago(null);
       setTimeout(() => setToastFeedback(null), 4000);
     }
   };
@@ -1321,12 +1327,22 @@ export const DashboardVencimientos: React.FC<DashboardVencimientosProps> = ({
         <FacturaDetalleModal
           factura={facturaSeleccionada}
           onClose={() => setFacturaSeleccionada(null)}
-          onActualizarEstado={async (fac, nuevoEstado) => {
+          onActualizarEstado={async (fac, nuevoEstado, fechaPago) => {
             if (onActualizarEstadoFactura) {
-              await onActualizarEstadoFactura(fac.idFactura, nuevoEstado);
+              await onActualizarEstadoFactura(fac.idFactura, nuevoEstado, fechaPago);
             }
             setFacturaSeleccionada(null);
           }}
+        />
+      )}
+
+      {/* Modal para introducir fecha de pago al pasar a Pagada */}
+      {facturaParaPago && (
+        <ConfirmarPagoModal
+          isOpen={Boolean(facturaParaPago)}
+          factura={facturaParaPago}
+          onClose={() => setFacturaParaPago(null)}
+          onConfirmar={handleConfirmarPago}
         />
       )}
     </div>

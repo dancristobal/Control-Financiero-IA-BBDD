@@ -26,3 +26,22 @@ Crea una nueva vista 'Panel de Cobros' que visualice la relación 'Order-to-Cash
 
 Implementa un componente de 'Preparación de Modelos Fiscales' que agrupe automáticamente las facturas del periodo seleccionado por tipos de IVA, facilitando la generación de los borradores para los modelos 303 y 347 mediante una tabla de resumen fiscal.
 
+
+
+
+prompt 
+Actualmente,el proyecto registra únicamente facturas de gastos, con lo cual el sistema solo ve "la mitad" del negocio, lo que imposibilita un control financiero real y cuadres fiscales precisos. Analiza qué necesito para que esta aplicacion sea un ERP financiero e impositivo verdaderamente completo en España (por ejemplo: incorporar urgentemente el módulo de ingresos y facturación emitida, la conciliación bancaria y la adaptación estricta a los nuevos reglamentos digitales de la AEAT)
+
+What core financial module would you like to prioritize first for the ERP upgrade?
+1 Recommended Ingresos y facturación emitida de ventas
+2 Conciliación bancaria automática
+3 Adaptación a VeriFactu y factura electrónica
+4 Cuenta de resultados P and L completa
+5 Otros
+
+How would you like to manage invoice series numbering and creation?
+1 Recommended Secuencial automático por año
+2 Series personalizadas por cliente
+3 Carga manual y escaneo de ventas
+4 Otros
+
